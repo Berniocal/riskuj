@@ -450,12 +450,14 @@ function normalizeContentUrl(raw){
 function openContentView(raw,label="Obsah"){
   const url=normalizeContentUrl(raw);
   if(!url){toast("Odkaz není platná webová adresa");return}
-  activeContentUrl=url;
   stopTimer();
-  $("contentTitle").textContent=label;
-  $("contentUrl").textContent=url;
-  $("contentFrame").src=url;
-  $("contentOverlay").classList.add("show");
+  const w=window.open(url,"riskuj-content","width=1100,height=800");
+  if(w){
+    try{w.opener=null}catch(e){}
+    try{w.focus()}catch(e){}
+  }else{
+    window.location.href=url;
+  }
 }
 function closeContentView(){
   $("contentOverlay").classList.remove("show");
