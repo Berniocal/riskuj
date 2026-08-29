@@ -1,2 +1,710 @@
-<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Riskuj!</title></head><body><p id="loading" style="font-family:system-ui;padding:24px">Načítám Riskuj…</p>
-<script src="parts2/p1.js"></script><script src="parts2/p2.js"></script><script src="parts2/p3.js"></script><script src="parts2/p4.js"></script><script src="parts2/p5.js"></script><script src="parts2/p6.js"></script><script src="parts2/p7.js"></script><script src="parts2/p8.js"></script><script>(async()=>{try{const a=Uint8Array.from(atob(window.__RISK_B64),c=>c.charCodeAt(0));const t=await new Response(new Blob([a]).stream().pipeThrough(new DecompressionStream('gzip'))).text();document.open();document.write(t);document.close()}catch(e){document.getElementById('loading').textContent='Nepodařilo se načíst aplikaci. Otevři ji v aktuálním Chrome, Edge, Firefoxu nebo Safari.';console.error(e)}})();</script></body></html>
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Riskuj! – třídní kvíz</title>
+<style>
+  :root{
+    --bg:#0a1024;
+    --panel:#111a38;
+    --panel2:#16234a;
+    --line:#31457f;
+    --text:#f6f8ff;
+    --muted:#b8c3e8;
+    --gold:#ffd84d;
+    --good:#35d07f;
+    --bad:#ff6b6b;
+    --accent:#7d8cff;
+    --shadow:0 18px 50px rgba(0,0,0,.38);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:radial-gradient(circle at top,#18255a 0,#0a1024 48%,#060a17 100%);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+  button,input{font:inherit}
+  button{cursor:pointer}
+  .app{min-height:100vh;display:flex;flex-direction:column}
+  .topbar{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;background:rgba(4,8,20,.72);backdrop-filter:blur(12px);position:sticky;top:0;z-index:20;border-bottom:1px solid rgba(255,255,255,.08)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#ffd84d,#ff9c3f);display:grid;place-items:center;color:#151515;font-weight:1000;font-size:23px;box-shadow:0 8px 24px rgba(255,184,55,.26)}
+  .brand h1{font-size:21px;margin:0;letter-spacing:.2px}.brand small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .btn{border:1px solid rgba(255,255,255,.14);background:#18244c;color:var(--text);border-radius:12px;padding:10px 13px;font-weight:800;transition:.15s ease;box-shadow:0 5px 14px rgba(0,0,0,.15)}
+  .btn:hover{transform:translateY(-1px);background:#20305f}.btn:active{transform:translateY(0)}
+  .btn.primary{background:linear-gradient(135deg,#697cff,#9b6cff);border:none}.btn.good{background:#173d2d;border-color:#2d7856}.btn.bad{background:#492129;border-color:#8c3949}.btn.gold{background:#4d4216;border-color:#8d7a29;color:#fff5b0}
+  .main{width:min(1500px,100%);margin:0 auto;padding:18px;flex:1;display:flex;flex-direction:column;gap:14px}
+  .game-title{text-align:center;font-weight:1000;letter-spacing:.4px;font-size:clamp(24px,3.5vw,44px);margin:2px 0 4px;text-shadow:0 3px 18px rgba(0,0,0,.45)}
+  .board-wrap{overflow-x:auto;border-radius:20px;box-shadow:var(--shadow);background:rgba(6,10,25,.5);padding:8px;border:1px solid rgba(255,255,255,.08)}
+  .board{display:grid;gap:7px;min-width:720px}
+  .category{min-height:88px;display:grid;place-items:center;text-align:center;padding:14px 10px;background:linear-gradient(180deg,#293f92,#1b2e70);border:1px solid #4d66bd;border-radius:12px;font-size:clamp(17px,1.55vw,25px);font-weight:1000;text-transform:uppercase;letter-spacing:.5px;box-shadow:inset 0 1px rgba(255,255,255,.1)}
+  .cell{min-height:112px;border-radius:12px;border:1px solid #3f5ac2;background:linear-gradient(160deg,#102d9b,#092273);display:grid;place-items:center;color:var(--gold);font-size:clamp(29px,3vw,47px);font-weight:1000;text-shadow:0 3px 0 rgba(0,0,0,.3);transition:.15s ease;position:relative;overflow:hidden}
+  .cell:hover{transform:translateY(-2px) scale(1.01);filter:brightness(1.11);box-shadow:0 10px 22px rgba(0,0,0,.28)}
+  .cell.used{background:#111934;border-color:#29355d;color:#53618b;text-shadow:none;cursor:default;transform:none;filter:none}.cell.used::after{content:"✓";position:absolute;font-size:34px;color:#60709f}
+  .cell .point-label{transition:.15s}.cell.used .point-label{opacity:.12}
+  .scoreboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding-bottom:6px}
+  .team{background:linear-gradient(180deg,rgba(26,39,82,.95),rgba(15,24,53,.95));border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:11px 12px;display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+  .team-name{font-size:17px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.team-score{font-size:30px;font-weight:1000;color:var(--gold);font-variant-numeric:tabular-nums}.team-tools{grid-column:1/-1;display:flex;gap:6px}.mini{padding:6px 9px;border-radius:9px;border:1px solid rgba(255,255,255,.12);background:#1b2956;color:white;font-weight:800}
+  .hint{color:var(--muted);text-align:center;font-size:13px}
+
+  .overlay{position:fixed;inset:0;background:rgba(1,4,12,.82);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;padding:18px;z-index:100}.overlay.show{display:flex}
+  .modal{width:min(1180px,100%);max-height:94vh;overflow:auto;background:linear-gradient(180deg,#17234a,#0c1430);border:1px solid rgba(255,255,255,.13);border-radius:24px;box-shadow:0 30px 90px rgba(0,0,0,.55);padding:20px;position:relative}
+  .modal-head{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center}.q-cat{color:#bac7f5;font-weight:900;font-size:16px}.q-value{justify-self:center;color:var(--gold);font-size:26px;font-weight:1000}.close{justify-self:end;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.14);background:#1b2752;color:#fff;font-size:23px}
+  .timer-wrap{display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0}.timer{font-size:clamp(44px,7vw,82px);font-weight:1000;font-variant-numeric:tabular-nums;line-height:1}.timer.warning{color:#ffd84d}.timer.danger{color:#ff6666;animation:pulse .7s infinite alternate}@keyframes pulse{to{transform:scale(1.035)}}
+  .timer-controls{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
+  .question{text-align:center;font-size:clamp(26px,4vw,50px);font-weight:950;line-height:1.15;margin:18px auto 20px;max-width:1020px}
+  .answer-box{display:none;margin:12px auto 18px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#123b2c,#174b36);border:1px solid #3f8e68;text-align:center;max-width:980px}.answer-box.show{display:block}.answer-label{color:#a9e7c7;text-transform:uppercase;font-size:12px;font-weight:1000;letter-spacing:1.4px}.answer{font-size:clamp(23px,3.3vw,40px);font-weight:1000;margin-top:6px;line-height:1.2}.note{color:#d4e1ff;font-size:15px;line-height:1.45;margin-top:9px}
+  .question-actions{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin:8px 0 14px}
+  .score-panel{border-top:1px solid rgba(255,255,255,.09);padding-top:14px;margin-top:8px}.score-panel h3{text-align:center;margin:0 0 10px;color:#dce4ff}.award-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:9px}.award{border:1px solid rgba(255,255,255,.13);background:#131f43;border-radius:14px;padding:10px}.award-name{font-weight:900;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis}.award-btns{display:grid;grid-template-columns:1fr 1fr;gap:7px}.award-btns button{border:none;border-radius:9px;padding:9px 7px;font-weight:950;color:#fff}.award-btns .plus{background:#1f774f}.award-btns .minus{background:#963f4f}.award-btns button.selected{outline:3px solid #ffd84d;box-shadow:0 0 0 2px rgba(0,0,0,.35) inset}.award-pending{margin-top:7px;font-size:12px;color:var(--gold);font-weight:900;text-align:center}
+  .source-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}.linkbtn{text-decoration:none;display:inline-flex;align-items:center;gap:7px}
+  .video-box{display:none;margin:14px auto 6px;max-width:900px;aspect-ratio:16/9;border-radius:16px;overflow:hidden;background:#000;border:1px solid rgba(255,255,255,.14)}.video-box.show{display:block}.video-box iframe{width:100%;height:100%;border:0}
+  .image-box{display:none;margin:14px auto 10px;max-width:900px;min-height:120px;max-height:460px;border-radius:16px;overflow:hidden;background:#080d1d;border:1px solid rgba(255,255,255,.14);align-items:center;justify-content:center;padding:8px}.image-box.show{display:flex}.image-box img{display:block;max-width:100%;max-height:440px;width:auto;height:auto;object-fit:contain;border-radius:10px}.image-help{color:var(--muted);font-size:12px;text-align:center;margin-top:5px}
+  .content-overlay{z-index:180;padding:0;background:#071020;backdrop-filter:none;align-items:stretch;justify-content:stretch}.content-overlay.show{display:flex}.content-shell{width:100%;height:100%;min-height:0;display:flex;flex-direction:column;background:#071020}.content-toolbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 12px;background:#0e1735;border-bottom:1px solid rgba(255,255,255,.12)}.content-meta{min-width:0;text-align:center}.content-meta strong{display:block;font-size:15px}.content-url{display:block;color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}.content-hint{padding:7px 12px;text-align:center;color:#c9d3f5;background:#121e43;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px}.content-frame{border:0;width:100%;flex:1;min-height:420px;background:#fff}.content-back{white-space:nowrap}.content-external{white-space:nowrap}@media(max-width:700px){.content-toolbar{grid-template-columns:auto 1fr}.content-external{grid-column:1/-1;width:100%}.content-meta{text-align:left}.content-frame{min-height:520px}}
+
+  .setup-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}@media(max-width:800px){.setup-grid{grid-template-columns:1fr}.modal-head{grid-template-columns:1fr auto}.q-value{grid-column:1/2;grid-row:2;justify-self:start}.close{grid-column:2;grid-row:1/3}.question{font-size:30px}}
+  .section{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:14px}.section h2,.section h3{margin:0 0 12px}.field{display:grid;gap:6px;margin-bottom:12px}.field label{color:#cbd4f6;font-size:13px;font-weight:800}.field input{background:#0e1735;border:1px solid #364b87;border-radius:11px;padding:11px 12px;color:#fff;outline:none}.field input:focus{border-color:#8292ff;box-shadow:0 0 0 3px rgba(125,140,255,.14)}
+  .team-input-row{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:8px}.danger-link{color:#ff9c9c;background:transparent;border:none;font-weight:900}.setup-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .switch-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.07)}.switch-row:last-child{border-bottom:none}.switch-row input{transform:scale(1.25)}
+  .sources-mini{font-size:12px;color:#aab5db;line-height:1.5}.row-points{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}.transfer-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .footer-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:2px}
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%) translateY(20px);background:#111a38;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:10px 14px;opacity:0;pointer-events:none;transition:.2s;z-index:300;box-shadow:var(--shadow);font-weight:800}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .final-card{text-align:center}.wagers{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin:14px 0}.wager-item{background:#101b3b;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px;text-align:left}.wager-item label{display:block;font-weight:900;margin-bottom:6px}.wager-item input{width:100%;background:#0b1430;border:1px solid #364b87;color:#fff;border-radius:10px;padding:10px}.final-question{font-size:clamp(26px,4vw,48px);font-weight:1000;margin:20px auto;max-width:900px}.final-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:9px;margin-top:12px}.final-result{background:#101b3b;border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px}.final-result strong{display:block;margin-bottom:8px}.final-result .award-btns button{padding:10px}
+
+  .editor-modal{width:min(1500px,100%);max-height:96vh;padding:16px}
+  .editor-head{position:sticky;top:-16px;z-index:4;background:linear-gradient(180deg,#17234a 82%,rgba(23,35,74,0));padding:8px 2px 18px;margin-bottom:4px}
+  .editor-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .editor-toolbar .left,.editor-toolbar .right{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .editor-note{color:var(--muted);font-size:13px;line-height:1.45}
+  .editor-category{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:14px;margin:12px 0}
+  .editor-category-title{display:grid;grid-template-columns:auto minmax(220px,520px) 1fr;gap:10px;align-items:center;margin-bottom:12px}
+  .editor-category-title strong{color:var(--gold);font-size:19px}
+  .editor-input,.editor-textarea{width:100%;background:#0d1632;border:1px solid #364b87;color:#fff;border-radius:10px;padding:10px 11px;outline:none}
+  .editor-input:focus,.editor-textarea:focus{border-color:#8292ff;box-shadow:0 0 0 3px rgba(125,140,255,.13)}
+  .editor-textarea{min-height:78px;resize:vertical;line-height:1.38}
+  .editor-q-grid{display:grid;grid-template-columns:repeat(5,minmax(250px,1fr));gap:10px;overflow-x:auto;padding-bottom:4px}
+  .editor-q{background:#101a3a;border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:11px;min-width:250px}
+  .editor-q h4{margin:0 0 10px;color:#f3f5ff;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .editor-badge{font-size:12px;color:#161616;background:var(--gold);border-radius:999px;padding:4px 8px;font-weight:1000;white-space:nowrap}
+  .editor-field{display:grid;gap:5px;margin-bottom:9px}.editor-field:last-child{margin-bottom:0}
+  .editor-field label{font-size:11px;text-transform:uppercase;letter-spacing:.55px;color:#acb9e5;font-weight:900}
+  .editor-final{background:rgba(255,216,77,.055);border-color:rgba(255,216,77,.28)}
+  @media(max-width:900px){.editor-category-title{grid-template-columns:1fr}.editor-q-grid{grid-template-columns:1fr;overflow:visible}.editor-q{min-width:0}.editor-modal{padding:12px}.editor-head{top:-12px}}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark">R</div><div><h1>Riskuj!</h1><small>třídní kvíz</small></div></div>
+    <div class="actions">
+      <button class="btn" id="setupBtn">⚙ Nastavení</button>
+      <button class="btn primary" id="editorBtn">✎ Upravit otázky</button>
+      <button class="btn" id="downloadHtmlTop">⬇ Stáhnout HTML</button>
+      <button class="btn gold" id="finalBtn">★ Finální Riskuj</button>
+      <button class="btn" id="fullscreenBtn">⛶ Celá obrazovka</button>
+      <button class="btn bad" id="resetBtn">↺ Nová hra</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="game-title" id="gameTitle"></div>
+    <div class="board-wrap"><div class="board" id="board"></div></div>
+    <div class="scoreboard" id="scoreboard"></div>
+    <div class="footer-actions"><button class="btn" id="undoBtn">↶ Vrátit poslední změnu bodů</button></div>
+    <div class="hint">Hra i upravené otázky se automaticky ukládají v tomto prohlížeči. Pro přenos na jiný počítač použij <b>Stáhnout HTML</b> nebo JSON.</div>
+  </main>
+</div>
+
+<div class="overlay" id="questionOverlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-head"><div class="q-cat" id="qCategory"></div><div class="q-value" id="qValue"></div><button class="close" id="closeQuestion">×</button></div>
+    <div class="timer-wrap"><div class="timer" id="timer">30</div></div>
+    <div class="timer-controls"><button class="btn primary" id="timerStart">▶ Start</button><button class="btn" id="timerPause">⏸ Pauza</button><button class="btn" id="timerReset">↺ Znovu</button></div>
+    <div class="question" id="questionText"></div>
+    <div class="image-box" id="imageBox"><img id="questionImage" alt="Obrázek k otázce"></div>
+    <div class="question-actions">
+      <button class="btn good" id="showAnswer">✓ Zobrazit odpověď</button>
+      <button class="btn" id="videoBtn" style="display:none">▶ Video</button>
+      <button class="btn" id="sourceBtn" type="button">🌐 Otevřít obsah</button>
+    </div>
+    <div class="video-box" id="videoBox"><iframe id="videoFrame" title="Video k otázce" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
+    <div class="answer-box" id="answerBox"><div class="answer-label">Správná odpověď</div><div class="answer" id="answerText"></div><div class="note" id="answerNote"></div></div>
+    <div class="score-panel"><h3>Přidělit body</h3><div class="award-grid" id="awardGrid"></div></div>
+    <div class="source-row"><button class="btn good" id="allCorrect">✓ Všem správně</button><button class="btn primary" id="applyAwards">Uložit body → zpět na tabuli</button><button class="btn" id="finishNoScore">Bez bodů → zpět na tabuli</button><button class="btn" id="reopenLater">Nechat otázku aktivní</button></div>
+  </div>
+</div>
+
+<div class="overlay content-overlay" id="contentOverlay" role="dialog" aria-modal="true" aria-label="Otevřený obsah">
+  <div class="content-shell">
+    <div class="content-toolbar">
+      <button class="btn content-back" id="contentBack" type="button">← Zpět k otázce</button>
+      <div class="content-meta"><strong id="contentTitle">Obsah</strong><span class="content-url" id="contentUrl"></span></div>
+      <button class="btn content-external" id="contentExternal" type="button">↗ Otevřít v novém panelu</button>
+    </div>
+    <div class="content-hint">Pokud web zobrazení uvnitř aplikace blokuje, použij „Otevřít v novém panelu“. Riskuj zůstane rozehraný na původní otázce.</div>
+    <iframe class="content-frame" id="contentFrame" title="Obsah k otázce" allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="no-referrer-when-downgrade"></iframe>
+  </div>
+</div>
+
+<div class="overlay" id="setupOverlay" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-head"><div class="q-cat">Nastavení hry</div><div></div><button class="close" id="closeSetup">×</button></div>
+    <div class="setup-grid">
+      <section class="section">
+        <h2>Hra</h2>
+        <div class="field"><label>Název hry</label><input id="titleInput" maxlength="80"></div>
+        <div class="field"><label>Čas na otázku (sekundy)</label><input id="timeInput" type="number" min="5" max="300" step="5"></div>
+        <div class="switch-row"><span>Po špatné odpovědi odečítat body</span><input id="subtractWrong" type="checkbox"></div>
+        <div class="switch-row"><span>Automaticky spustit čas po otevření otázky</span><input id="autoTimer" type="checkbox"></div>
+        <div class="switch-row"><span>Zvuk při konci časového limitu</span><input id="soundTimer" type="checkbox"></div>
+      </section>
+      <section class="section">
+        <h2>Týmy</h2>
+        <div id="teamInputs"></div>
+        <button class="btn" id="addTeam">＋ Přidat tým</button>
+        <div class="sources-mini" style="margin-top:10px">2–8 týmů. Body lze během hry kdykoli ručně upravit.</div>
+      </section>
+      <section class="section">
+        <h2>Tabule</h2>
+        <div class="field"><label>Počet sloupců</label><input id="columnCount" type="number" min="1" max="10" step="1"></div>
+        <div class="field"><label>Počet řádků otázek</label><input id="rowCount" type="number" min="1" max="10" step="1"></div>
+        <div class="field"><label>Body podle řádků</label><div class="row-points" id="rowPointInputs"></div></div>
+        <div class="sources-mini">Při změně rozměrů se existující obsah zachová. Nová pole vzniknou prázdná. Body lze dále upravit i jednotlivě v editoru otázek.</div>
+      </section>
+      <section class="section">
+        <h2>Přenos a záloha</h2>
+        <div class="sources-mini">HTML obsahuje otázky i nastavení přímo uvnitř souboru, takže po poslání e-mailem nezmizí. JSON slouží jako snadno přenositelná záloha.</div>
+        <div class="transfer-actions"><button class="btn primary" id="downloadHtml">⬇ Stáhnout HTML</button><button class="btn" id="downloadJson">⬇ Stáhnout JSON</button><button class="btn" id="uploadJson">⬆ Nahrát JSON</button><input id="jsonFile" type="file" accept="application/json,.json" style="display:none"></div>
+      </section>
+    </div>
+    <div class="setup-actions"><button class="btn primary" id="saveSetup">Uložit nastavení</button></div>
+  </div>
+</div>
+
+
+<div class="overlay" id="editorOverlay" role="dialog" aria-modal="true">
+  <div class="modal editor-modal">
+    <div class="editor-head">
+      <div class="modal-head"><div class="q-cat">Editor otázek</div><div></div><button class="close" id="closeEditor">×</button></div>
+      <div class="editor-toolbar">
+        <div class="left"><div class="editor-note">Uprav otázku, odpověď, body, poznámku, zdroj nebo video.</div></div>
+        <div class="right"><button class="btn" id="editorDownloadHtml">⬇ HTML</button><button class="btn" id="editorDownloadJson">⬇ JSON</button><button class="btn bad" id="resetQuestions">↺ Původní otázky</button><button class="btn primary" id="saveQuestions">Uložit změny</button></div>
+      </div>
+    </div>
+    <div id="editorContent"></div>
+  </div>
+</div>
+
+<div class="overlay" id="manualOverlay" role="dialog" aria-modal="true">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><div class="q-cat" id="manualTitle">Upravit body</div><div></div><button class="close" id="closeManual">×</button></div>
+    <div class="field"><label>Nový počet bodů</label><input id="manualScore" type="number" step="10"></div>
+    <div class="setup-actions"><button class="btn primary" id="saveManual">Uložit</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="finalOverlay" role="dialog" aria-modal="true">
+  <div class="modal final-card">
+    <div class="modal-head"><div class="q-cat">Finální Riskuj</div><div></div><button class="close" id="closeFinal">×</button></div>
+    <div id="finalSetupStage">
+      <h2>Sázky týmů</h2><p style="color:var(--muted)">Každý tým zadá sázku. Potom zobraz otázku.</p>
+      <div class="wagers" id="wagerGrid"></div>
+      <button class="btn gold" id="showFinalQuestion">★ Zobrazit finální otázku</button>
+    </div>
+    <div id="finalQuestionStage" style="display:none">
+      <div class="timer-wrap"><div class="timer" id="finalTimer">45</div></div>
+      <div class="timer-controls"><button class="btn primary" id="finalTimerStart">▶ Start</button><button class="btn" id="finalTimerPause">⏸ Pauza</button><button class="btn" id="finalTimerReset">↺ Znovu</button></div>
+      <div class="q-cat" id="finalCategory"></div>
+      <div class="final-question" id="finalQuestion"></div>
+      <div class="question-actions"><button class="btn good" id="showFinalAnswer">✓ Zobrazit odpověď</button><button class="btn" id="finalSource" type="button">🌐 Otevřít obsah</button></div>
+      <div class="answer-box" id="finalAnswerBox"><div class="answer-label">Správná odpověď</div><div class="answer" id="finalAnswer"></div><div class="note" id="finalNote"></div></div>
+      <div class="final-results" id="finalResults"></div>
+      <div class="source-row"><button class="btn primary" id="finishFinal">Dokončit finále</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script id="embeddedVariant">window.__RISKUJ_EMBEDDED_VARIANT__={"format":"riskuj-quiz","version":3,"variantId":"recovered-1787907937-0a0d7a","quizData":{"title":"Riskuj! – Alkohol, rekordy a netradiční sporty","categories":[{"name":"Alkohol I","questions":[{"value":100,"question":"Jak namíchám long island iced tea?","answer":"Smíchám gin, rum, tequila, vodka a Triple sec, doleje se kolou a zamíchá, podává se s ledem a limetkou.","note":"","source":"","video":""},{"value":100,"question":"Kolik % má nejsilnější pivo na světě s názvem Snake Venom?","answer":"67,5%","note":"","source":"","video":""},{"value":100,"question":"Co je to Oenofóbia?","answer":"Strach z vína.","note":"","source":"","video":""},{"value":100,"question":"Které tři suroviny původní bavorský předpis z roku 1516 výslovně povoloval pro vaření piva?","answer":"Vodu, slad a chmel.","note":"","source":"","video":""},{"value":100,"question":"Kolik bublinek je v 1 lahvi šampusu (0,75 l)?","answer":"49 milionů","note":"","source":"","video":""}]},{"name":"Alkohol II","questions":[{"value":100,"question":"Z jaké rostliny se vyrábí alkohol Akvavit?","answer":"Jedná se o skandinávskou kmínovou pálenku, která zraje v sudech.","note":"","source":"","video":""},{"value":100,"question":"Jaký je rekordní čas ve vypití litru piva?","answer":"Litr piva za 1,3 sekundy","note":"Američan Steven Petrosino","source":"","video":""},{"value":100,"question":"Kolik bylo maximálně naměřeno promile v krvi?","answer":"Světových 12,3 promile","note":"Absolutní světový unikát údajně patřil pětačtyřicetiletému Polákovi Andrzejovi W., který po bujaré oslavě s kamarády nadýchal tuto hodnotu a přežil to.","source":"","video":""},{"value":100,"question":"Kolik litrů čistého alkoholu vypije ročně průměrný Čech?","answer":"14,26 litrů čistého alkoholu","note":"","source":"","video":""},{"value":100,"question":"Co znamená pivní zkratka IPA?","answer":"India Pale Ale.","note":"Jde o styl pale ale historicky spojený s britským exportem piva do Indie.","source":"","video":""}]},{"name":"Bizarní rekordy I","questions":[{"value":100,"question":"Kolik lžic se podařilo rekordmanovi najednou vybalancovat na obličeji?","answer":"31 lžic.","note":"Rekord vytvořil Dalibor Jablanović v Srbsku v roce 2013.","source":"https://www.google.com/search?sca_esv=a4ac375be92b09b0&sxsrf=APpeQnveChZsbPGqHSOKTPSRE7O3qD61Mw:1787818614147&udm=2&fbs=ABfTbFV0iOAe5bfNeqyKguXm6dMy_0ApBOceFCSJ56j3b6FgHpuZ0DcWv6_1pA5zX2_7TY-S3VIpUwRW1Fgi70iaME_QUliHEIgTUZp8zB7vYq3TigVUJD14-rBZ3aVw_3gpRkzB_JWW0CkVebbsbMMi_1__ZcU-niwUHnvzmXVgPimy_mYA5ymbV9Stxrsb-vB1P3sU3IlS8Bd66dI0poHqsvrdN66Vqg&q=Most+spoons+balanced+on+the+face&sa=X&ved=2ahUKEwiZ26yrr8CWAxVkgf0HHSZCFVoQtKgLegQIIRAB&biw=1912&bih=914&dpr=1#sv=CAMSURoyKhBlLWRIM2NYS05PMENyYVJNMg5kSDNjWEtOTzBDcmFSTToORjFvc0twalpJRXlDNU0gBCoXCgFzEhBlLWRIM2NYS05PMENyYVJNGAEwARgHIIWIxawFOgBKCBABGAEgASgB","video":""},{"value":100,"question":"Jak dlouhý byl nejdelší jednotlivý nehet v historii Guinnessových rekordů?","answer":"197,8 cm.","note":"Šlo o nehet na palci Shridara Chillala. Součet nehtů jeho levé ruky dosáhl 909,6 cm.","source":"https://www.google.com/search?sca_esv=a4ac375be92b09b0&sxsrf=APpeQnvQyK-zduW-mD1PiN7TqH4-ghjFoQ:1787819630673&udm=2&fbs=ABfTbFV0iOAe5bfNeqyKguXm6dMy_0ApBOceFCSJ56j3b6FgHhiePJsdpZG-T28G_MN3pIvI-Ch6soQlOkkTPdB4fqf42AB7ptCheB3-PdzShKgqiIF06sy-CtoOgbfcmPpbXRS1S5x5GkV-ZvatwOMhfzrpaEIB5DnVrAQ1dMkz5rQTpae1MoS0KNYUxnu2nokujzIlf9xv16BTkItaAA7557ipv4R4hg&q=worlds+longest+nail&sa=X&ved=2ahUKEwjlx4iQs8CWAxV88bsIHZ9lGycQtKgLegQIHhAB&biw=1912&bih=914&dpr=1","video":""},{"value":100,"question":"Jaký je rekordní počet sirek v nose?","answer":"81","note":"","source":"","video":""},{"value":100,"question":"Jaký je rekord ve vykulení očních bulv v mm?","answer":"18 mm","note":"","source":"","video":"https://www.youtube.com/watch?v=AhwYI6Ms5kI"},{"value":100,"question":"Kolik měřil nejdelší knír žijícího muže zaznamenaný Guinness World Records?","answer":"63,5 cm.","note":"Rekord Paula Slosara byl změřen v roce 2022.","source":"https://www.google.com/search?q=worlds+longest+moustache&sca_esv=a4ac375be92b09b0&udm=2&biw=1912&bih=914&sxsrf=APpeQnuyQXA2OPwqx8-IW9_9zh75M3GhhQ%3A1787819632648&ei=cPaPauOQJ66J9u8Pg9uwwQs&ved=0ahUKEwjjiIGRs8CWAxWuhP0HHYMtLLgQ4dUDCBE&uact=5&oq=worlds+longest+moustache&gs_lp=Egtnd3Mtd2l6LWltZyIYd29ybGRzIGxvbmdlc3QgbW91c3RhY2hlMgcQABiABBgTSPMTULsFWL0ScAF4AJABAJgBOaAB0gOqAQE5uAEDyAEA-AEBmAIKoAKgBMICCBAAGAcYHhgKwgIJEAAYgAQYChgLwgIEEAAYHsICBhAAGB4YCsICBxAAGIAEGArCAgkQABiABBgTGArCAggQABgeGBMYCsICChAAGAgYHhgTGAqYAwCIBgGSBwIxMKAHjR2yBwE5uAeaBMIHBzAuNS4zLjLIBzaACAE&sclient=gws-wiz-img","video":""}]},{"name":"Bizarní rekordy II","questions":[{"value":100,"question":"Jaký je rekord ve skákání po schodech na hlavě směrem vzhůru?","answer":"35 schodů","note":"","source":"","video":"https://www.youtube.com/watch?v=AhwYI6Ms5kI"},{"value":100,"question":"Kolik dřevěných záchodových prkének rozbil Kevin Shelley hlavou za jednu minutu?","answer":"46 prkének.","note":"Rekord vznikl v Kolíně nad Rýnem v roce 2007. Rozhodně nezkoušet ve třídě.","source":"","video":"https://www.youtube.com/watch?v=BsawMWxSNDc"},{"value":100,"question":"Jak hlasité bylo rekordní mužské říhnutí Nevilla Sharpa?","answer":"112,4 dB.","note":"Guinness uvádí 112,4 dB; výkon byl zaznamenán v Austrálii v roce 2021.","source":"","video":"https://www.youtube.com/watch?v=7Dg9O8Mmb9g"},{"value":100,"question":"Za kolik sekund byl v roce 2025 zaběhnut světový rekord na 100 m po čtyřech?","answer":"14,55 sekundy.","note":"Ryusei Yonee vytvořil rekord v Japonsku 24. září 2025.","source":"","video":"https://www.youtube.com/watch?v=rJNbAaYj1IY"},{"value":100,"question":"Jak se jmenuje člověk držící nejvíce guinessových rekordů?","answer":"Ashirita Furman","note":"Celkově stanovil 700 rekordů, aktuálně drží 200","source":"https://www.google.com/search?sca_esv=a4ac375be92b09b0&sxsrf=APpeQnv8L2KtrkPNQk2vU5oBkjFadEsn2w:1787822063106&udm=2&fbs=ABfTbFV0iOAe5bfNeqyKguXm6dMy_0ApBOceFCSJ56j3b6FgHhiePJsdpZG-T28G_MN3pIuFnO_Fa78g23E86wN4XP61a7njJn91Zz4vrgM8j9OsMjq9YjIN3vljDH-hbQoEOmra2-D4yogAa9Geo_CGGSt7MvhkDnDAGEK9LfyU2NXbOBOrYdk8SWf-QRdrmUL2ud_R-lfb&q=ashrita+furman&sa=X&ved=2ahUKEwjjv_iXvMCWAxUClP0HHXALIWgQtKgLegQIFRAB&biw=1912&bih=914&dpr=1","video":""}]},{"name":"Netradiční sporty","questions":[{"value":100,"question":"Jaká netradiční odměna pro vítěze je spojena se závody v nošení manželek?","answer":"Hmotnost nesené partnerky v pivu.","note":"Tato bizarní cena je tradičně spojena s wife carrying; závody mají kořeny ve Finsku.","source":"https://www.investing.com/news/world-news/lithuanian-couple-defends-world-wifecarrying-championship-title-1916635","video":"https://www.youtube.com/watch?v=pbRj1R6jW2w"},{"value":100,"question":"V které zemi se koná mistrovství světa v „bog snorkelling“ – šnorchlování v rašeliništi?","answer":"Ve Walesu.","note":"Závod se koná u Llanwrtyd Wells. Účastníci absolvují dvě délky rašelinného příkopu s maskou, šnorchlem a ploutvemi.","source":"https://www.visitwales.com/event/sporting-event/world-bogsnorkelling-championships-603021","video":"https://www.youtube.com/watch?v=jVuabhIYHaY"},{"value":100,"question":"V jaké domácí práci se koná každoroční mistrovství světa?","answer":"žehlení - extreme ironing","note":"","source":"","video":"https://www.youtube.com/watch?v=aLf4FTDUB2k"},{"value":100,"question":"K jakému modernímu sportu by bylo možné přirovnat Dutch canal jumping?","answer":"Skok o tyči","note":"","source":"","video":"https://www.youtube.com/watch?v=eZuG2MGrt-M"},{"value":100,"question":"Jak se jmenuje japonský oblíbený sport, který snoubí to nejlepší z amerického fotbalu, vlajkované a bojových umění?","answer":"Bo-Taoshi","note":"Tento sport budeme letos hodně trénovat v rámci TV a těšíme se na mezinárodní soutěže.","source":"","video":"https://www.youtube.com/watch?v=RCa7lwBGkEs"}]}],"final":{"category":"","question":"","answer":"","note":"","source":"","time":45}},"settings":{"title":"Riskuj! – Alkohol, rekordy a netradiční sporty","defaultTime":30,"subtractWrong":true,"autoTimer":false,"soundTimer":true,"teams":[{"name":"Tým 1"},{"name":"Tým 2"},{"name":"Tým 3"},{"name":"Tým 4"}]}};</script>
+<script>
+const EMBEDDED_VARIANT = window.__RISKUJ_EMBEDDED_VARIANT__ || null;
+function clone(obj){return JSON.parse(JSON.stringify(obj))}
+const DEFAULT_QUIZ_DATA = {
+  title: "Riskuj! – Alkohol, rekordy a netradiční sporty",
+  categories: [
+    {
+      name: "Alkohol I",
+      questions: [
+        {value:100, question:"Jak se jmenuje psychoaktivní a toxická látka obsažená v alkoholických nápojích?", answer:"Ethanol (ethylalkohol).", note:"WHO označuje ethanol v alkoholických nápojích za psychoaktivní a toxickou látku, která může vyvolat závislost.", source:"https://www.who.int/news-room/fact-sheets/detail/alcohol"},
+        {value:100, question:"Kolik gramů čistého alkoholu obsahuje jeden „standardní drink“ podle americké definice NIAAA?", answer:"14 gramů čistého alkoholu.", note:"V různých zemích se definice standardního drinku liší. Tady je použitá americká definice NIAAA.", source:"https://www.niaaa.nih.gov/alcohols-effects-health/what-standard-drink"},
+        {value:100, question:"Přibližně kolik amerických standardních drinků obsahuje 750ml láhev vína o 12 % alkoholu?", answer:"Přibližně 5 standardních drinků.", note:"NIAAA uvádí 750 ml stolního vína o 12 % jako zhruba pět amerických standardních drinků.", source:"https://www.niaaa.nih.gov/health-professionals-communities/core-resource-on-alcohol/basics-defining-how-much-alcohol-too-much"},
+        {value:100, question:"S kolika nemocemi, úrazy a dalšími zdravotními stavy je podle WHO alkohol kauzálně spojen?", answer:"S více než 200 zdravotními stavy.", note:"WHO uvádí kauzální souvislost s více než 200 nemocemi, úrazy a dalšími zdravotními stavy.", source:"https://www.who.int/news-room/fact-sheets/detail/alcohol"},
+        {value:100, question:"Do jaké skupiny karcinogenů IARC patří alkohol?", answer:"Skupina 1 – prokázaný karcinogen pro člověka.", note:"WHO Europe uvádí alkohol jako karcinogen skupiny 1. Riziko se týká ethanolu i acetaldehydu vznikajícího při jeho metabolismu.", source:"https://www.who.int/europe/news-room/fact-sheets/item/alcohol-use"}
+      ]
+    },
+    {
+      name: "Alkohol II",
+      questions: [
+        {value:100, question:"Z jaké rostliny se musí vyrábět pravá tequila?", answer:"Z modré agáve – Agave tequilana Weber, modrá odrůda.", note:"Tequila Regulatory Council uvádí modrou agáve jako jediný povolený druh pro výrobu tequily.", source:"https://www.crt.org.mx/en/our-tequila/"},
+        {value:100, question:"Jaká obilovina musí tvořit nejméně 51 % obilné směsi pro bourbon whiskey?", answer:"Kukuřice.", note:"Americký TTB uvádí pro bourbon nejméně 51 % kukuřice ve fermentované obilné směsi.", source:"https://www.ttb.gov/system/files/images/pdfs/forms/f511042.pdf"},
+        {value:100, question:"Jak se jmenuje známé bavorské „pravidlo čistoty piva“ z roku 1516?", answer:"Reinheitsgebot.", note:"Předpis byl vydán roku 1516 v Ingolstadtu a stal se symbolem německé pivovarnické tradice.", source:"https://www.bundesfinanzministerium.de/Content/DE/Bilderstrecken/Sondermarken/Programm_2016/Programm_2016_Bilder/0704-reinheitsgebot.html"},
+        {value:100, question:"Které tři suroviny původní bavorský předpis z roku 1516 výslovně povoloval pro vaření piva?", answer:"Vodu, slad a chmel.", note:"Kvasnice tehdejší text výslovně nejmenoval; jejich biologická role ještě nebyla známá tak jako dnes.", source:"https://www.bundesfinanzministerium.de/Content/DE/Bilderstrecken/Sondermarken/Programm_2016/Programm_2016_Bilder/0704-reinheitsgebot.html"},
+        {value:100, question:"Co znamená pivní zkratka IPA?", answer:"India Pale Ale.", note:"Jde o styl pale ale historicky spojený s britským exportem piva do Indie.", source:"https://learn.camra.org.uk/courses/india-pale-ale-a-history"}
+      ]
+    },
+    {
+      name: "Bizarní rekordy I",
+      questions: [
+        {value:100, question:"Kolik lžic se podařilo rekordmanovi najednou vybalancovat na obličeji?", answer:"31 lžic.", note:"Rekord vytvořil Dalibor Jablanović v Srbsku v roce 2013.", source:"https://www.guinnessworldrecords.com/world-records/most-spoons-balanced-on-the-face"},
+        {value:100, question:"Jak dlouhý byl nejdelší jednotlivý nehet v historii Guinnessových rekordů?", answer:"197,8 cm.", note:"Šlo o nehet na palci Shridara Chillala. Součet nehtů jeho levé ruky dosáhl 909,6 cm.", source:"https://www.guinnessworldrecords.com/world-records/746374-longest-fingernail-ever"},
+        {value:100, question:"Jak vysoký byl rekordní plný mohawk (číro) Josepha Grisamorea?", answer:"108,2 cm.", note:"Rekord byl změřen v USA v roce 2019.", source:"https://www.guinnessworldrecords.com/world-records/78891-tallest-full-mohican-mohawk"},
+        {value:100, question:"Kolik různých gumových kachniček měla rekordní sbírka Charlotte Lee?", answer:"5 631 kachniček.", note:"Guinness World Records evidoval tuto sbírku v roce 2011.", source:"https://www.guinnessworldrecords.com/world-records/largest-collection-of-rubber-ducks"},
+        {value:100, question:"Kolik měřil nejdelší knír žijícího muže zaznamenaný Guinness World Records?", answer:"63,5 cm.", note:"Rekord Paula Slosara byl změřen v roce 2022.", source:"https://www.guinnessworldrecords.com/world-records/689505-longest-moustache-on-a-living-person-male"}
+      ]
+    },
+    {
+      name: "Bizarní rekordy II",
+      questions: [
+        {value:100, question:"Kolik ponožek si rekordman dokázal navléct na jednu nohu za jednu minutu?", answer:"52 ponožek.", note:"Pavol Ďurdik ze Slovenska rekord vytvořil v Púchově v roce 2017.", source:"https://www.guinnessworldrecords.com/world-records/most-socks-put-on-one-foot-in-one-minute"},
+        {value:100, question:"Kolik dřevěných záchodových prkének rozbil Kevin Shelley hlavou za jednu minutu?", answer:"46 prkének.", note:"Rekord vznikl v Kolíně nad Rýnem v roce 2007. Rozhodně nezkoušet ve třídě.", source:"https://www.guinnessworldrecords.com/world-records/most-toilet-seats-broken-by-the-head-in-one-minute"},
+        {value:100, question:"Jak hlasité bylo rekordní mužské říhnutí Nevilla Sharpa?", answer:"112,4 dB.", note:"Guinness uvádí 112,4 dB; výkon byl zaznamenán v Austrálii v roce 2021.", source:"https://www.guinnessworldrecords.com/world-records/80129-loudest-burp-male", video:"https://www.youtube.com/watch?v=7Dg9O8Mmb9g"},
+        {value:100, question:"Za kolik sekund byl v roce 2025 zaběhnut světový rekord na 100 m po čtyřech?", answer:"14,55 sekundy.", note:"Ryusei Yonee vytvořil rekord v Japonsku 24. září 2025.", source:"https://www.guinnessworldrecords.com/world-records/88771-fastest-100-m-running-on-all-fours"},
+        {value:100, question:"Jak hlasité bylo ženské rekordní říhnutí Kimberly Winter zaznamenané v březnu 2026?", answer:"108 dB.", note:"Guinness World Records uvádí 108 dB (C-weighted).", source:"https://www.guinnessworldrecords.com/world-records/87121-loudest-burp-female"}
+      ]
+    },
+    {
+      name: "Netradiční sporty",
+      questions: [
+        {value:100, question:"Jaká netradiční odměna pro vítěze je spojena se závody v nošení manželek?", answer:"Hmotnost nesené partnerky v pivu.", note:"Tato bizarní cena je tradičně spojena s wife carrying; závody mají kořeny ve Finsku.", source:"https://www.investing.com/news/world-news/lithuanian-couple-defends-world-wifecarrying-championship-title-1916635", video:"https://www.youtube.com/watch?v=PqRuCLmtYkQ"},
+        {value:100, question:"V které zemi se koná mistrovství světa v „bog snorkelling“ – šnorchlování v rašeliništi?", answer:"Ve Walesu.", note:"Závod se koná u Llanwrtyd Wells. Účastníci absolvují dvě délky rašelinného příkopu s maskou, šnorchlem a ploutvemi.", source:"https://www.visitwales.com/event/sporting-event/world-bogsnorkelling-championships-603021", video:"https://www.youtube.com/watch?v=jVuabhIYHaY"},
+        {value:100, question:"Čím si smějí závodníci vycpat holeně při tradičním britském sportu shin-kicking?", answer:"Slámou.", note:"Oficiální pravidla Cotswold Olimpick Games dovolují slámu jako výstelku holení; kovové špičky bot jsou zakázané.", source:"https://www.olimpickgames.com/shin-kicking/"},
+        {value:100, question:"Jak vysoké překážky má otevřená mistrovská třída hobbyhorse show jumpingu ve Finsku v roce 2026?", answer:"100–110 cm.", note:"Jde o skoky s hobby horse – koníkem na tyči – na oficiálním finském mistrovství.", source:"https://keppihevostensm.fi/en/finnish-championship-classes/"},
+        {value:100, question:"Jaký druh sýra získává vítěz slavného Cheese Rolling na Cooper’s Hill?", answer:"Double Gloucester.", note:"Závodníci se ženou z prudkého kopce za bochníkem sýra Double Gloucester.", source:"https://www.cheese-rolling.co.uk/index_htm.html", video:"https://www.youtube.com/watch?v=ZjaSwFAalpU"}
+      ]
+    }
+  ],
+  final: {
+    category:"Finální téma: Bizarní rekordy",
+    question:"Kolik centimetrů měřil součet všech pěti nehtů na levé ruce Shridara Chillala před jejich ostříháním?",
+    answer:"909,6 cm (tedy přes 9 metrů).",
+    note:"Jeho nejdelší jednotlivý nehet – na palci – měřil 197,8 cm.",
+    source:"https://www.guinnessworldrecords.com/news/2026/8/how-the-fingernails-on-this-mans-left-hand-secured-his-spot-in-history-forever",
+    time:45
+  }
+};
+
+const VARIANT_ID = EMBEDDED_VARIANT?.variantId || "base";
+const QUIZ_STORAGE_KEY = `riskuj-quiz-data-v3-${VARIANT_ID}`;
+const STORAGE_KEY = `riskuj-classroom-v3-${VARIANT_ID}`;
+function normalizeQuizData(data){
+  const q=clone(data);
+  if(!q || !Array.isArray(q.categories) || !q.categories.length) return clone(DEFAULT_QUIZ_DATA);
+  q.categories=q.categories.slice(0,10);
+  q.categories.forEach((cat,ci)=>{
+    cat.name=String(cat.name||`Kategorie ${ci+1}`);
+    if(!Array.isArray(cat.questions)) cat.questions=[];
+    cat.questions=cat.questions.slice(0,10);
+    cat.questions.forEach((item,qi)=>{
+      item.question=String(item.question||"");
+      item.answer=String(item.answer||"");
+      item.note=String(item.note||"");
+      item.source=String(item.source||"");
+      item.image=String(item.image||"");
+      item.video=String(item.video||"");
+      const v=Number(item.value);
+      item.value=Number.isFinite(v)?Math.max(0,Math.round(v)):100;
+    });
+  });
+  if(!q.final) q.final=clone(DEFAULT_QUIZ_DATA.final);
+  return q;
+}
+function loadQuizData(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(QUIZ_STORAGE_KEY));
+    if(saved) return normalizeQuizData(saved);
+    if(!EMBEDDED_VARIANT){
+      const legacy=JSON.parse(localStorage.getItem("riskuj-quiz-data-v2"));
+      if(legacy) return normalizeQuizData(legacy);
+    }
+  }catch(e){}
+  if(EMBEDDED_VARIANT?.quizData) return normalizeQuizData(EMBEDDED_VARIANT.quizData);
+  return normalizeQuizData(DEFAULT_QUIZ_DATA);
+}
+function saveQuizData(){localStorage.setItem(QUIZ_STORAGE_KEY,JSON.stringify(QUIZ_DATA))}
+let QUIZ_DATA=loadQuizData();
+
+const embeddedSettings=EMBEDDED_VARIANT?.settings||{};
+const defaults = {
+  title: embeddedSettings.title || QUIZ_DATA.title,
+  defaultTime: Number(embeddedSettings.defaultTime)||30,
+  subtractWrong: embeddedSettings.subtractWrong ?? true,
+  autoTimer: embeddedSettings.autoTimer ?? false,
+  soundTimer: embeddedSettings.soundTimer ?? true,
+  teams:Array.isArray(embeddedSettings.teams)&&embeddedSettings.teams.length>=2
+    ? embeddedSettings.teams.slice(0,8).map((t,i)=>({name:String(t.name||`Tým ${i+1}`),score:0}))
+    :[{name:"Tým 1",score:0},{name:"Tým 2",score:0},{name:"Tým 3",score:0},{name:"Tým 4",score:0}],
+  used:{},
+  finalPlayed:false,
+  history:[]
+};
+
+function loadState(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if(saved) return {...clone(defaults),...saved,teams:Array.isArray(saved.teams)&&saved.teams.length>=2?saved.teams:clone(defaults.teams),used:saved.used||{},history:saved.history||[]};
+    if(!EMBEDDED_VARIANT){
+      const legacy=JSON.parse(localStorage.getItem("riskuj-classroom-v1"));
+      if(legacy) return {...clone(defaults),...legacy,teams:Array.isArray(legacy.teams)&&legacy.teams.length>=2?legacy.teams:clone(defaults.teams),used:legacy.used||{},history:legacy.history||[]};
+    }
+  }catch(e){}
+  return clone(defaults);
+}
+function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
+
+let state = loadState();
+let current = null;
+let timerId = null, remaining = state.defaultTime, running = false;
+let finalTimerId = null, finalRemaining = QUIZ_DATA.final.time || 45, finalRunning=false;
+let manualTeamIndex = null;
+let finalWagers = [];
+let editorDraft = null;
+let pendingAwards = {};
+
+const $ = id => document.getElementById(id);
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove("show"),1800)}
+function esc(s){return String(s).replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]))}
+
+function boardRows(){return Math.max(1,...QUIZ_DATA.categories.map(c=>Array.isArray(c.questions)?c.questions.length:0))}
+function render(){
+  $("gameTitle").textContent=state.title;
+  const b=$("board"); b.innerHTML="";
+  const cols=QUIZ_DATA.categories.length;
+  b.style.gridTemplateColumns=`repeat(${cols},minmax(150px,1fr))`;
+  b.style.minWidth=Math.max(720,cols*165)+"px";
+  QUIZ_DATA.categories.forEach((cat,ci)=>{const d=document.createElement("div");d.className="category";d.textContent=cat.name;b.appendChild(d)});
+  const rows=boardRows();
+  for(let qi=0;qi<rows;qi++){
+    QUIZ_DATA.categories.forEach((cat,ci)=>{
+      const q=cat.questions[qi]; const key=`${ci}-${qi}`;
+      const btn=document.createElement("button"); btn.className="cell"+(state.used[key]?" used":"");
+      if(!q){btn.disabled=true;btn.classList.add("used");btn.innerHTML='<span class="point-label">—</span>';}
+      else{btn.disabled=!!state.used[key];btn.innerHTML=`<span class="point-label">${q.value}</span>`;btn.addEventListener("click",()=>openQuestion(ci,qi));}
+      b.appendChild(btn);
+    });
+  }
+  renderScoreboard();
+  $("finalBtn").textContent=state.finalPlayed?"★ Finále odehráno":"★ Finální Riskuj";
+}
+
+function renderScoreboard(){
+  const s=$("scoreboard"); s.innerHTML="";
+  state.teams.forEach((team,i)=>{
+    const d=document.createElement("div"); d.className="team";
+    d.innerHTML=`<div class="team-name" title="${esc(team.name)}">${esc(team.name)}</div><div class="team-score">${team.score}</div><div class="team-tools"><button class="mini" data-edit="${i}">Upravit body</button></div>`;
+    s.appendChild(d);
+  });
+  s.querySelectorAll("[data-edit]").forEach(btn=>btn.onclick=()=>openManual(Number(btn.dataset.edit)));
+}
+function renderAwards(){
+  const g=$("awardGrid");g.innerHTML="";
+  state.teams.forEach((team,i)=>{
+    const d=document.createElement("div");d.className="award";
+    const selected=pendingAwards[i]||0;
+    d.innerHTML=`<div class="award-name">${esc(team.name)} <span style="color:var(--muted)">(${team.score})</span></div><div class="award-btns"><button class="plus ${selected===current.q.value?'selected':''}">+${current.q.value}</button><button class="minus ${selected===-current.q.value?'selected':''}">−${current.q.value}</button></div><div class="award-pending">${selected?`Vybráno: ${selected>0?'+':''}${selected}`:'Bez změny'}</div>`;
+    const [plus,minus]=d.querySelectorAll("button");
+    plus.onclick=()=>selectAward(i,current.q.value);
+    minus.onclick=()=>selectAward(i,-current.q.value);
+    if(!state.subtractWrong) minus.disabled=true, minus.style.opacity=.35, minus.title="Odečítání za chybu je vypnuté v nastavení";
+    g.appendChild(d);
+  });
+}
+function selectAward(teamIndex,delta){
+  pendingAwards[teamIndex]=pendingAwards[teamIndex]===delta?0:delta;
+  if(!pendingAwards[teamIndex]) delete pendingAwards[teamIndex];
+  renderAwards();
+}
+function selectAllCorrect(){
+  state.teams.forEach((_,i)=>pendingAwards[i]=current.q.value);
+  renderAwards();
+}
+function applyAwardsAndClose(){
+  const changes=[];
+  Object.entries(pendingAwards).forEach(([idx,delta])=>{
+    const i=Number(idx),d=Number(delta)||0;if(!d||!state.teams[i])return;
+    const oldScore=state.teams[i].score;state.teams[i].score+=d;
+    changes.push({teamIndex:i,oldScore,newScore:state.teams[i].score});
+  });
+  if(changes.length){state.history.push({type:"round",changes,label:"otázka"});if(state.history.length>50)state.history.shift();}
+  saveState();renderScoreboard();closeQuestion(true);
+}
+
+let activeContentUrl="";
+function normalizeContentUrl(raw){
+  const value=String(raw||"").trim();
+  if(!value) return "";
+  try{
+    const u=new URL(value,location.href);
+    if(!["http:","https:"].includes(u.protocol)) return "";
+    return u.href;
+  }catch(e){return ""}
+}
+function openContentView(raw,label="Obsah"){
+  const url=normalizeContentUrl(raw);
+  if(!url){toast("Odkaz není platná webová adresa");return}
+  activeContentUrl=url;
+  stopTimer();
+  $("contentTitle").textContent=label;
+  $("contentUrl").textContent=url;
+  $("contentFrame").src=url;
+  $("contentOverlay").classList.add("show");
+}
+function closeContentView(){
+  $("contentOverlay").classList.remove("show");
+  $("contentFrame").src="about:blank";
+  activeContentUrl="";
+}
+function isYoutubeUrl(raw){
+  try{const u=new URL(raw);return u.hostname.includes("youtube.com")||u.hostname.includes("youtu.be")}catch(e){return false}
+}
+
+function openQuestion(ci,qi){
+  stopTimer(); pendingAwards={}; current={ci,qi,q:QUIZ_DATA.categories[ci].questions[qi],key:`${ci}-${qi}`};
+  $("qCategory").textContent=QUIZ_DATA.categories[ci].name;
+  $("qValue").textContent=current.q.value+" bodů";
+  $("questionText").textContent=current.q.question;
+  $("answerText").textContent=current.q.answer;
+  $("answerNote").textContent=current.q.note||"";
+  $("answerBox").classList.remove("show");
+  $("sourceBtn").dataset.url=current.q.source||""; $("sourceBtn").style.display=current.q.source?"inline-flex":"none";
+  const imgUrl=resolveImageUrl(current.q.image);
+  $("imageBox").classList.toggle("show",!!imgUrl); $("questionImage").src=imgUrl||"";
+  $("videoBtn").style.display=current.q.video?"inline-block":"none";
+  $("videoBox").classList.remove("show"); $("videoFrame").src="";
+  remaining=current.q.time||state.defaultTime; updateTimerDisplay(); renderAwards();
+  $("questionOverlay").classList.add("show");
+  if(state.autoTimer) startTimer();
+}
+function closeQuestion(markUsed=true){
+  stopTimer();
+  if(markUsed && current){state.used[current.key]=true;saveState();}
+  $("questionOverlay").classList.remove("show");
+  $("videoFrame").src=""; $("questionImage").src=""; $("imageBox").classList.remove("show"); render(); current=null; pendingAwards={};
+}
+
+function resolveImageUrl(raw){
+  const value=String(raw||"").trim();
+  if(!value) return "";
+  try{
+    const u=new URL(value);
+    const direct=u.searchParams.get("imgurl");
+    if(direct) return direct;
+  }catch(e){}
+  return value;
+}
+
+function beep(){
+  if(!state.soundTimer) return;
+  try{const AC=window.AudioContext||window.webkitAudioContext;const c=new AC();const o=c.createOscillator(),g=c.createGain();o.frequency.value=520;g.gain.setValueAtTime(.12,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.8);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.8)}catch(e){}
+}
+function updateTimerDisplay(){
+  const t=$("timer");t.textContent=remaining;t.classList.toggle("warning",remaining<=10&&remaining>5);t.classList.toggle("danger",remaining<=5);
+}
+function startTimer(){if(running||remaining<=0)return;running=true;timerId=setInterval(()=>{remaining--;updateTimerDisplay();if(remaining<=0){stopTimer();beep();toast("Čas vypršel")}},1000)}
+function stopTimer(){running=false;if(timerId){clearInterval(timerId);timerId=null}}
+function resetTimer(){stopTimer();remaining=current?.q.time||state.defaultTime;updateTimerDisplay()}
+function youtubeEmbed(url){try{const u=new URL(url);if(u.hostname.includes("youtu.be"))return `https://www.youtube.com/embed/${u.pathname.slice(1)}?rel=0`;if(u.hostname.includes("youtube.com")){const id=u.searchParams.get("v");if(id)return `https://www.youtube.com/embed/${id}?rel=0`;}}catch(e){}return url}
+
+function currentRowPoints(){
+  const rows=boardRows();
+  return Array.from({length:rows},(_,ri)=>{
+    for(const c of QUIZ_DATA.categories){if(c.questions?.[ri])return Number(c.questions[ri].value)||100}
+    return 100;
+  });
+}
+function renderRowPointInputs(count=boardRows(),values=currentRowPoints()){
+  const wrap=$("rowPointInputs");wrap.innerHTML="";
+  for(let i=0;i<count;i++){
+    const d=document.createElement("div");d.className="field";d.style.marginBottom="0";
+    d.innerHTML=`<label>Řádek ${i+1}</label><input data-row-point="${i}" type="number" min="0" max="100000" step="10" value="${Number(values[i])||100}">`;
+    wrap.appendChild(d);
+  }
+}
+function openSetup(){
+  $("titleInput").value=state.title;$("timeInput").value=state.defaultTime;$("subtractWrong").checked=state.subtractWrong;$("autoTimer").checked=state.autoTimer;$("soundTimer").checked=state.soundTimer;
+  $("columnCount").value=QUIZ_DATA.categories.length;$("rowCount").value=boardRows();renderRowPointInputs();renderTeamInputs();$("setupOverlay").classList.add("show");
+}
+function renderTeamInputs(){
+  const wrap=$("teamInputs");wrap.innerHTML="";
+  state.teams.forEach((t,i)=>{const row=document.createElement("div");row.className="team-input-row";row.innerHTML=`<input data-teamname="${i}" value="${esc(t.name)}" maxlength="30"><button class="danger-link" data-remove="${i}" ${state.teams.length<=2?"disabled style='opacity:.35'":""}>Odebrat</button>`;wrap.appendChild(row)});
+  wrap.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{const i=Number(b.dataset.remove); if(state.teams.length<=2)return; syncTeamNames();state.teams.splice(i,1);renderTeamInputs()});
+}
+function syncTeamNames(){document.querySelectorAll("[data-teamname]").forEach(inp=>{const i=Number(inp.dataset.teamname);if(state.teams[i])state.teams[i].name=inp.value.trim()||`Tým ${i+1}`})}
+function makeBlankQuestion(value=100){return {value,question:"",answer:"",note:"",source:"",video:""}}
+function resizeBoard(cols,rows,rowPoints){
+  while(QUIZ_DATA.categories.length<cols) QUIZ_DATA.categories.push({name:`Kategorie ${QUIZ_DATA.categories.length+1}`,questions:[]});
+  QUIZ_DATA.categories=QUIZ_DATA.categories.slice(0,cols);
+  QUIZ_DATA.categories.forEach((cat,ci)=>{
+    if(!Array.isArray(cat.questions))cat.questions=[];
+    while(cat.questions.length<rows)cat.questions.push(makeBlankQuestion(rowPoints[cat.questions.length]??100));
+    cat.questions=cat.questions.slice(0,rows);
+    cat.questions.forEach((q,ri)=>q.value=Number(rowPoints[ri])||0);
+  });
+}
+function saveSetup(){
+  syncTeamNames();state.title=$("titleInput").value.trim()||QUIZ_DATA.title;state.defaultTime=Math.max(5,Math.min(300,Number($("timeInput").value)||30));state.subtractWrong=$("subtractWrong").checked;state.autoTimer=$("autoTimer").checked;state.soundTimer=$("soundTimer").checked;
+  const cols=Math.max(1,Math.min(10,Number($("columnCount").value)||5));const rows=Math.max(1,Math.min(10,Number($("rowCount").value)||5));
+  let rowPoints=[...document.querySelectorAll("[data-row-point]")].map(x=>Math.max(0,Math.round(Number(x.value)||0)));
+  while(rowPoints.length<rows)rowPoints.push(100);
+  resizeBoard(cols,rows,rowPoints.slice(0,rows));
+  state.used={};saveQuizData();saveState();$("setupOverlay").classList.remove("show");render();toast("Nastavení uloženo");
+}
+
+function openEditor(){
+  stopTimer();
+  editorDraft=clone(QUIZ_DATA);
+  renderEditor();
+  $("editorOverlay").classList.add("show");
+}
+function renderEditor(){
+  const wrap=$("editorContent");wrap.innerHTML="";
+  editorDraft.categories.forEach((cat,ci)=>{
+    const sec=document.createElement("section");sec.className="editor-category";
+    const head=document.createElement("div");head.className="editor-category-title";
+    head.innerHTML=`<strong>Sloupec ${ci+1}</strong><input class="editor-input" data-cat-name="${ci}" maxlength="60" value="${esc(cat.name||"")}" aria-label="Název kategorie ${ci+1}"><div class="editor-note">${cat.questions.length} otázek</div>`;
+    sec.appendChild(head);
+    const grid=document.createElement("div");grid.className="editor-q-grid";grid.style.gridTemplateColumns=`repeat(${Math.max(1,cat.questions.length)},minmax(250px,1fr))`;
+    cat.questions.forEach((q,qi)=>{
+      const card=document.createElement("div");card.className="editor-q";
+      card.innerHTML=`
+        <h4><span>Otázka ${qi+1}</span><span class="editor-badge">${q.value} bodů</span></h4>
+        <div class="editor-field"><label>Body</label><input class="editor-input" data-q-field="value" data-ci="${ci}" data-qi="${qi}" type="number" min="0" max="100000" step="10" value="${Number(q.value)||0}"></div>
+        <div class="editor-field"><label>Otázka</label><textarea class="editor-textarea" data-q-field="question" data-ci="${ci}" data-qi="${qi}">${esc(q.question||"")}</textarea></div>
+        <div class="editor-field"><label>Odpověď</label><textarea class="editor-textarea" data-q-field="answer" data-ci="${ci}" data-qi="${qi}">${esc(q.answer||"")}</textarea></div>
+        <div class="editor-field"><label>Poznámka pro učitele</label><textarea class="editor-textarea" data-q-field="note" data-ci="${ci}" data-qi="${qi}">${esc(q.note||"")}</textarea></div>
+        <div class="editor-field"><label>Zdroj – odkaz</label><input class="editor-input" data-q-field="source" data-ci="${ci}" data-qi="${qi}" value="${esc(q.source||"")}" placeholder="https://…"></div>
+        <div class="editor-field"><label>Obrázek – odkaz (volitelné)</label><input class="editor-input" data-q-field="image" data-ci="${ci}" data-qi="${qi}" value="${esc(q.image||"")}" placeholder="Přímá URL obrázku / Google imgres odkaz"><div class="image-help">Nejspolehlivější je v Google Obrázcích zvolit „Kopírovat adresu obrázku“. Odkaz Google imgres s parametrem imgurl aplikace také umí převést.</div></div>
+        <div class="editor-field"><label>Video – odkaz (volitelné)</label><input class="editor-input" data-q-field="video" data-ci="${ci}" data-qi="${qi}" value="${esc(q.video||"")}" placeholder="YouTube / jiný odkaz"></div>`;
+      grid.appendChild(card);
+    });
+    sec.appendChild(grid);wrap.appendChild(sec);
+  });
+
+  const f=editorDraft.final||{};
+  const finalSec=document.createElement("section");finalSec.className="editor-category editor-final";
+  finalSec.innerHTML=`
+    <div class="editor-category-title"><strong>Finální Riskuj</strong><input class="editor-input" data-final-field="category" value="${esc(f.category||"")}" placeholder="Téma finále"><div class="editor-note">Finále používá sázky týmů.</div></div>
+    <div class="editor-field"><label>Finální otázka</label><textarea class="editor-textarea" data-final-field="question">${esc(f.question||"")}</textarea></div>
+    <div class="editor-field"><label>Odpověď</label><textarea class="editor-textarea" data-final-field="answer">${esc(f.answer||"")}</textarea></div>
+    <div class="editor-field"><label>Poznámka pro učitele</label><textarea class="editor-textarea" data-final-field="note">${esc(f.note||"")}</textarea></div>
+    <div class="editor-field"><label>Zdroj – odkaz</label><input class="editor-input" data-final-field="source" value="${esc(f.source||"")}" placeholder="https://…"></div>
+    <div class="editor-field"><label>Čas na finále (sekundy)</label><input class="editor-input" data-final-field="time" type="number" min="5" max="300" value="${Number(f.time)||45}"></div>`;
+  wrap.appendChild(finalSec);
+}
+function syncEditorDraft(){
+  document.querySelectorAll("[data-cat-name]").forEach(inp=>{const ci=Number(inp.dataset.catName);if(editorDraft.categories[ci])editorDraft.categories[ci].name=inp.value.trim()||`Kategorie ${ci+1}`});
+  document.querySelectorAll("[data-q-field]").forEach(inp=>{
+    const ci=Number(inp.dataset.ci),qi=Number(inp.dataset.qi),field=inp.dataset.qField;
+    const q=editorDraft.categories?.[ci]?.questions?.[qi];if(!q)return;
+    if(field==="value") q.value=Math.max(0,Math.round(Number(inp.value)||0)); else q[field]=inp.value.trim();
+  });
+  document.querySelectorAll("[data-final-field]").forEach(inp=>{
+    const field=inp.dataset.finalField;if(!editorDraft.final)editorDraft.final={};
+    editorDraft.final[field]=field==="time"?Math.max(5,Math.min(300,Number(inp.value)||45)):inp.value.trim();
+  });
+}
+function saveEditor(){
+  syncEditorDraft();
+  QUIZ_DATA=normalizeQuizData(editorDraft);saveQuizData();
+  $("editorOverlay").classList.remove("show");
+  render();toast("Otázky uloženy");
+}
+function resetEditor(){
+  if(!confirm("Vrátit celý obsah otázek, odpovědí, poznámek a zdrojů do původní verze?"))return;
+  editorDraft=normalizeQuizData(DEFAULT_QUIZ_DATA);renderEditor();toast("Načteny původní otázky – potvrď Uložit změny");
+}
+
+function openManual(i){manualTeamIndex=i;$("manualTitle").textContent=`Upravit body – ${state.teams[i].name}`;$("manualScore").value=state.teams[i].score;$("manualOverlay").classList.add("show");setTimeout(()=>$("manualScore").select(),50)}
+function saveManual(){if(manualTeamIndex===null)return;const old=state.teams[manualTeamIndex].score;const val=Number($("manualScore").value)||0;state.history.push({teamIndex:manualTeamIndex,oldScore:old,newScore:val,label:"ruční změna"});state.teams[manualTeamIndex].score=val;saveState();$("manualOverlay").classList.remove("show");renderScoreboard();toast("Body upraveny")}
+function undoScore(){const h=state.history.pop();if(!h){toast("Není co vrátit");return}if(h.type==="round"&&Array.isArray(h.changes)){h.changes.forEach(c=>{if(state.teams[c.teamIndex])state.teams[c.teamIndex].score=c.oldScore})}else if(state.teams[h.teamIndex])state.teams[h.teamIndex].score=h.oldScore;saveState();renderScoreboard();toast("Poslední změna bodů vrácena")}
+
+function variantPayload(){
+  return {format:"riskuj-quiz",version:4,quizData:clone(QUIZ_DATA),settings:{title:state.title,defaultTime:state.defaultTime,subtractWrong:state.subtractWrong,autoTimer:state.autoTimer,soundTimer:state.soundTimer,teams:state.teams.map(t=>({name:t.name}))}};
+}
+function safeFileName(name,ext){const base=String(name||"riskuj").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9_-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,70)||"riskuj";return `${base}.${ext}`}
+function triggerDownload(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+function downloadJson(){
+  const payload=variantPayload();triggerDownload(new Blob([JSON.stringify(payload,null,2)],{type:"application/json;charset=utf-8"}),safeFileName(state.title,"json"));toast("JSON stažen");
+}
+function importJsonFile(file){
+  const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(data?.format!=="riskuj-quiz"||!data.quizData)throw new Error("Neplatný formát");QUIZ_DATA=normalizeQuizData(data.quizData);const st=data.settings||{};state={...clone(defaults),title:st.title||QUIZ_DATA.title,defaultTime:Number(st.defaultTime)||30,subtractWrong:st.subtractWrong??true,autoTimer:st.autoTimer??false,soundTimer:st.soundTimer??true,teams:Array.isArray(st.teams)&&st.teams.length>=2?st.teams.slice(0,8).map((t,i)=>({name:String(t.name||`Tým ${i+1}`),score:0})):clone(defaults.teams),used:{},history:[],finalPlayed:false};saveQuizData();saveState();render();toast("JSON načten");}catch(e){alert("Soubor se nepodařilo načíst. Ověř, že jde o JSON exportovaný z této hry.")}};r.readAsText(file,"utf-8");
+}
+function syncEditorForExport(){
+  if($("editorOverlay").classList.contains("show")&&editorDraft){syncEditorDraft();QUIZ_DATA=normalizeQuizData(editorDraft);saveQuizData();render();}
+}
+function downloadPortableHtml(){
+  syncEditorForExport();
+  const payload=variantPayload();payload.variantId=`v${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+  const el=$("embeddedVariant");const original=el.textContent;
+  const json=JSON.stringify(payload).replace(/</g,"\\u003c").replace(/\u2028/g,"\\u2028").replace(/\u2029/g,"\\u2029");
+  el.textContent=`window.__RISKUJ_EMBEDDED_VARIANT__=${json};`;
+  const html='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
+  el.textContent=original;
+  triggerDownload(new Blob([html],{type:"text/html;charset=utf-8"}),safeFileName(state.title,"html"));toast("Přenositelný HTML stažen");
+}
+
+function openFinal(){
+  finalWagers=state.teams.map(t=>Math.max(0,Math.min(Math.max(0,t.score),0)));
+  $("finalSetupStage").style.display="block";$("finalQuestionStage").style.display="none";
+  const w=$("wagerGrid");w.innerHTML="";
+  state.teams.forEach((t,i)=>{const max=Math.max(0,t.score);const d=document.createElement("div");d.className="wager-item";d.innerHTML=`<label>${esc(t.name)} – ${t.score} bodů</label><input data-wager="${i}" type="number" min="0" max="${max}" value="0" step="10"><div class="sources-mini">max. ${max}</div>`;w.appendChild(d)});
+  $("finalOverlay").classList.add("show")
+}
+function showFinal(){
+  finalWagers=[...document.querySelectorAll("[data-wager]")].map((inp,i)=>Math.max(0,Math.min(Number(inp.value)||0,Math.max(0,state.teams[i].score))));
+  $("finalSetupStage").style.display="none";$("finalQuestionStage").style.display="block";
+  $("finalCategory").textContent=QUIZ_DATA.final.category;$("finalQuestion").textContent=QUIZ_DATA.final.question;$("finalAnswer").textContent=QUIZ_DATA.final.answer;$("finalNote").textContent=QUIZ_DATA.final.note||"";$("finalAnswerBox").classList.remove("show");$("finalSource").dataset.url=QUIZ_DATA.final.source||"";$("finalSource").style.display=QUIZ_DATA.final.source?"inline-flex":"none";
+  finalRemaining=QUIZ_DATA.final.time||45;updateFinalTimer();renderFinalResults();
+}
+function renderFinalResults(){
+  const r=$("finalResults");r.innerHTML="";
+  state.teams.forEach((t,i)=>{const d=document.createElement("div");d.className="final-result";d.innerHTML=`<strong>${esc(t.name)} – sázka ${finalWagers[i]} b.</strong><div class="award-btns"><button class="plus" data-final-plus="${i}">Správně +${finalWagers[i]}</button><button class="minus" data-final-minus="${i}">Špatně −${finalWagers[i]}</button></div>`;r.appendChild(d)});
+  r.querySelectorAll("[data-final-plus]").forEach(b=>b.onclick=()=>applyFinal(Number(b.dataset.finalPlus),true,b));
+  r.querySelectorAll("[data-final-minus]").forEach(b=>b.onclick=()=>applyFinal(Number(b.dataset.finalMinus),false,b));
+}
+function applyFinal(i,correct,btn){if(btn.dataset.done)return;const d=correct?finalWagers[i]:-finalWagers[i];state.history.push({teamIndex:i,oldScore:state.teams[i].score,newScore:state.teams[i].score+d,label:"finále"});state.teams[i].score+=d;btn.dataset.done="1";btn.parentElement.querySelectorAll("button").forEach(x=>x.disabled=true);btn.style.opacity="1";btn.parentElement.querySelectorAll("button:not([data-done='1'])").forEach(x=>x.style.opacity=.35);saveState();renderScoreboard();toast(`${state.teams[i].name}: ${d>=0?"+":""}${d}`)}
+function updateFinalTimer(){const t=$("finalTimer");t.textContent=finalRemaining;t.classList.toggle("warning",finalRemaining<=10&&finalRemaining>5);t.classList.toggle("danger",finalRemaining<=5)}
+function startFinalTimer(){if(finalRunning||finalRemaining<=0)return;finalRunning=true;finalTimerId=setInterval(()=>{finalRemaining--;updateFinalTimer();if(finalRemaining<=0){stopFinalTimer();beep();toast("Čas vypršel")}},1000)}
+function stopFinalTimer(){finalRunning=false;if(finalTimerId){clearInterval(finalTimerId);finalTimerId=null}}
+function resetFinalTimer(){stopFinalTimer();finalRemaining=QUIZ_DATA.final.time||45;updateFinalTimer()}
+
+$("setupBtn").onclick=openSetup;$("editorBtn").onclick=openEditor;$("downloadHtmlTop").onclick=downloadPortableHtml;$("closeEditor").onclick=()=>$("editorOverlay").classList.remove("show");$("saveQuestions").onclick=saveEditor;$("resetQuestions").onclick=resetEditor;$("editorDownloadHtml").onclick=downloadPortableHtml;$("editorDownloadJson").onclick=()=>{syncEditorForExport();downloadJson()};$("closeSetup").onclick=()=>$("setupOverlay").classList.remove("show");$("saveSetup").onclick=saveSetup;$("downloadHtml").onclick=downloadPortableHtml;$("downloadJson").onclick=downloadJson;$("uploadJson").onclick=()=>$("jsonFile").click();$("jsonFile").onchange=e=>{const f=e.target.files?.[0];if(f)importJsonFile(f);e.target.value=""};$("rowCount").oninput=()=>{const n=Math.max(1,Math.min(10,Number($("rowCount").value)||1));const old=[...document.querySelectorAll("[data-row-point]")].map(x=>Number(x.value)||100);renderRowPointInputs(n,old)};
+$("addTeam").onclick=()=>{syncTeamNames();if(state.teams.length>=8){toast("Maximum je 8 týmů");return}state.teams.push({name:`Tým ${state.teams.length+1}`,score:0});renderTeamInputs()};
+$("closeQuestion").onclick=()=>closeQuestion(true);$("allCorrect").onclick=selectAllCorrect;$("applyAwards").onclick=applyAwardsAndClose;$("finishNoScore").onclick=()=>closeQuestion(true);$("reopenLater").onclick=()=>closeQuestion(false);
+$("showAnswer").onclick=()=>$("answerBox").classList.add("show");
+$("questionImage").onerror=()=>{if($("questionImage").src){$("imageBox").classList.remove("show");toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku")}};
+$("sourceBtn").onclick=()=>openContentView(current?.q?.source,"Zdroj k otázce");
+$("contentBack").onclick=closeContentView;
+$("contentExternal").onclick=()=>{if(!activeContentUrl)return;const w=window.open(activeContentUrl,"_blank","noopener,noreferrer");if(!w)toast("Prohlížeč zablokoval nový panel – povol vyskakovací okna")};
+$("videoBtn").onclick=()=>{if(!current?.q?.video)return;if(!isYoutubeUrl(current.q.video)){openContentView(current.q.video,"Video k otázce");return}const box=$("videoBox");const show=!box.classList.contains("show");box.classList.toggle("show",show);$("videoFrame").src=show?youtubeEmbed(current.q.video):""};
+$("timerStart").onclick=startTimer;$("timerPause").onclick=stopTimer;$("timerReset").onclick=resetTimer;
+$("resetBtn").onclick=()=>{if(confirm("Opravdu začít novou hru? Vynulují se body i použité otázky.")){const keep={title:state.title,defaultTime:state.defaultTime,subtractWrong:state.subtractWrong,autoTimer:state.autoTimer,soundTimer:state.soundTimer,teams:state.teams.map(t=>({name:t.name,score:0}))};state={...clone(defaults),...keep};saveState();render();toast("Nová hra připravena")}};
+$("fullscreenBtn").onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){toast("Celou obrazovku se nepodařilo zapnout")}};
+$("undoBtn").onclick=undoScore;
+$("closeManual").onclick=()=>$("manualOverlay").classList.remove("show");$("saveManual").onclick=saveManual;
+$("finalBtn").onclick=openFinal;$("closeFinal").onclick=()=>{stopFinalTimer();$("finalOverlay").classList.remove("show")};$("showFinalQuestion").onclick=showFinal;$("showFinalAnswer").onclick=()=>$("finalAnswerBox").classList.add("show");$("finalSource").onclick=()=>openContentView(QUIZ_DATA.final.source,"Zdroj finále");$("finalTimerStart").onclick=startFinalTimer;$("finalTimerPause").onclick=stopFinalTimer;$("finalTimerReset").onclick=resetFinalTimer;$("finishFinal").onclick=()=>{stopFinalTimer();state.finalPlayed=true;saveState();$("finalOverlay").classList.remove("show");render();toast("Finále dokončeno")};
+
+window.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    if($("contentOverlay").classList.contains("show")) closeContentView();
+    else if($("questionOverlay").classList.contains("show")) closeQuestion(true);
+    else if($("setupOverlay").classList.contains("show")) $("setupOverlay").classList.remove("show");
+    else if($("editorOverlay").classList.contains("show")) $("editorOverlay").classList.remove("show");
+    else if($("manualOverlay").classList.contains("show")) $("manualOverlay").classList.remove("show");
+    else if($("finalOverlay").classList.contains("show")){stopFinalTimer();$("finalOverlay").classList.remove("show")}
+  }
+  if($("questionOverlay").classList.contains("show") && e.code==="Space" && !["INPUT","TEXTAREA"].includes(document.activeElement.tagName)){e.preventDefault();running?stopTimer():startTimer()}
+});
+
+render();
+</script>
+</body>
+</html>
