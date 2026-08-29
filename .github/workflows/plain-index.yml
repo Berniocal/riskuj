@@ -1,0 +1,72 @@
+name: Convert Riskuj to plain HTML
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check whether conversion is needed
+        id: check
+        shell: bash
+        run: |
+          if [ -d parts2 ] && grep -q 'parts2/p1.js' index.html; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decode current app into index.html
+        if: steps.check.outputs.needed == 'true'
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64, gzip, re
+
+          def part_number(path: Path) -> int:
+              m = re.search(r'p(\d+)\.js$', path.name)
+              return int(m.group(1)) if m else 999999
+
+          chunks = []
+          files = sorted(Path('parts2').glob('p*.js'), key=part_number)
+          if not files:
+              raise SystemExit('Nenalezeny parts2/p*.js')
+
+          for path in files:
+              text = path.read_text(encoding='utf-8')
+              m = re.search(r'\+\s*"([A-Za-z0-9+/=]+)"\s*;', text)
+              if not m:
+                  raise SystemExit(f'Nelze přečíst payload z {path}')
+              chunks.append(m.group(1))
+
+          html = gzip.decompress(base64.b64decode(''.join(chunks))).decode('utf-8')
+          required = ['<!DOCTYPE html>', 'Stáhnout HTML', 'Stáhnout JSON', 'Nahrát JSON']
+          missing = [x for x in required if x not in html]
+          if missing:
+              raise SystemExit('Kontrola výsledku selhala, chybí: ' + ', '.join(missing))
+
+          Path('index.html').write_text(html, encoding='utf-8')
+          print(f'Hotovo: index.html má {len(html)} znaků')
+
+      - name: Remove obsolete compressed bundles
+        if: steps.check.outputs.needed == 'true'
+        run: rm -rf parts parts2
+
+      - name: Commit plain app
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html parts parts2
+          git commit -m "Store Riskuj as plain standalone HTML"
+          git push
