@@ -120,15 +120,19 @@
     <div class="timer-controls"><button class="btn primary" id="timerStart">▶ Start</button><button class="btn" id="timerPause">⏸ Pauza</button><button class="btn" id="timerReset">↺ Znovu</button></div>
     <div class="question" id="questionText"></div>
     <div class="image-box" id="imageBox"><img id="questionImage" alt="Obrázek k otázce"></div>
+    <div class="video-box" id="questionVideoBox"><iframe id="questionVideoFrame" title="Video k otázce" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
     <div class="question-actions">
       <button class="btn good" id="showAnswer">✓ Zobrazit odpověď</button>
-      <button class="btn" id="videoBtn" style="display:none">▶ Video</button>
-      <button class="btn" id="sourceBtn" type="button">🌐 Otevřít obsah</button>
     </div>
-    <div class="video-box" id="videoBox"><iframe id="videoFrame" title="Video k otázce" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
     <div class="answer-box" id="answerBox"><div class="answer-label">Správná odpověď</div><div class="answer" id="answerText"></div><div class="note" id="answerNote"></div></div>
+    <div class="question-actions" id="revealMediaActions" style="display:none">
+      <button class="btn" id="revealImageBtn" style="display:none">🖼 Zobrazit obrázek</button>
+      <button class="btn" id="videoBtn" style="display:none">▶ Zobrazit video</button>
+    </div>
+    <div class="image-box" id="revealImageBox"><img id="revealImage" alt="Obrázek po odpovědi"></div>
+    <div class="video-box" id="videoBox"><iframe id="videoFrame" title="Video po odpovědi" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
     <div class="score-panel"><h3>Přidělit body</h3><div class="award-grid" id="awardGrid"></div></div>
-    <div class="source-row"><button class="btn good" id="allCorrect">✓ Všem správně</button><button class="btn primary" id="applyAwards">Uložit body → zpět na tabuli</button><button class="btn" id="finishNoScore">Bez bodů → zpět na tabuli</button><button class="btn" id="reopenLater">Nechat otázku aktivní</button></div>
+    <div class="source-row"><button class="btn primary" id="applyAwards">Uložit body → zpět na tabuli</button></div>
   </div>
 </div>
 
@@ -185,7 +189,7 @@
     <div class="editor-head">
       <div class="modal-head"><div class="q-cat">Editor otázek</div><div></div><button class="close" id="closeEditor">×</button></div>
       <div class="editor-toolbar">
-        <div class="left"><div class="editor-note">Uprav otázku, odpověď, body, poznámku, zdroj nebo video.</div></div>
+        <div class="left"><div class="editor-note">Uprav otázku, odpověď, body, poznámku pro učitele, obrázky nebo videa.</div></div>
         <div class="right"><button class="btn" id="editorDownloadHtml">⬇ HTML</button><button class="btn" id="editorDownloadJson">⬇ JSON</button><button class="btn bad" id="resetQuestions">↺ Původní otázky</button><button class="btn primary" id="saveQuestions">Uložit změny</button></div>
       </div>
     </div>
@@ -214,7 +218,7 @@
       <div class="timer-controls"><button class="btn primary" id="finalTimerStart">▶ Start</button><button class="btn" id="finalTimerPause">⏸ Pauza</button><button class="btn" id="finalTimerReset">↺ Znovu</button></div>
       <div class="q-cat" id="finalCategory"></div>
       <div class="final-question" id="finalQuestion"></div>
-      <div class="question-actions"><button class="btn good" id="showFinalAnswer">✓ Zobrazit odpověď</button><button class="btn" id="finalSource" type="button">🌐 Otevřít obsah</button></div>
+      <div class="question-actions"><button class="btn good" id="showFinalAnswer">✓ Zobrazit odpověď</button></div>
       <div class="answer-box" id="finalAnswerBox"><div class="answer-label">Správná odpověď</div><div class="answer" id="finalAnswer"></div><div class="note" id="finalNote"></div></div>
       <div class="final-results" id="finalResults"></div>
       <div class="source-row"><button class="btn primary" id="finishFinal">Dokončit finále</button></div>
@@ -309,6 +313,8 @@ function normalizeQuizData(data){
       item.note=String(item.note||"");
       item.source=String(item.source||"");
       item.image=String(item.image||"");
+      item.questionVideo=String(item.questionVideo||"");
+      item.revealImage=String(item.revealImage||"");
       item.video=String(item.video||"");
       const v=Number(item.value);
       item.value=Number.isFinite(v)?Math.max(0,Math.round(v)):100;
@@ -476,10 +482,16 @@ function openQuestion(ci,qi){
   $("answerText").textContent=current.q.answer;
   $("answerNote").textContent=current.q.note||"";
   $("answerBox").classList.remove("show");
-  $("sourceBtn").dataset.url=current.q.source||""; $("sourceBtn").style.display=current.q.source?"inline-flex":"none";
   const imgUrl=resolveImageUrl(current.q.image);
   $("imageBox").classList.toggle("show",!!imgUrl); $("questionImage").src=imgUrl||"";
-  $("videoBtn").style.display=current.q.video?"inline-block":"none";
+  const questionVideo=current.q.questionVideo||"";
+  const questionVideoIsYoutube=!!questionVideo&&isYoutubeUrl(questionVideo);
+  $("questionVideoBox").classList.toggle("show",questionVideoIsYoutube);
+  $("questionVideoFrame").src=questionVideoIsYoutube?youtubeEmbed(questionVideo):"";
+  $("revealMediaActions").style.display="none";
+  $("revealImageBtn").style.display="none";
+  $("videoBtn").style.display="none";
+  $("revealImageBox").classList.remove("show"); $("revealImage").src="";
   $("videoBox").classList.remove("show"); $("videoFrame").src="";
   remaining=current.q.time||state.defaultTime; updateTimerDisplay(); renderAwards();
   $("questionOverlay").classList.add("show");
@@ -489,7 +501,10 @@ function closeQuestion(markUsed=true){
   stopTimer();
   if(markUsed && current){state.used[current.key]=true;saveState();}
   $("questionOverlay").classList.remove("show");
-  $("videoFrame").src=""; $("questionImage").src=""; $("imageBox").classList.remove("show"); render(); current=null; pendingAwards={};
+  $("videoFrame").src=""; $("questionVideoFrame").src="";
+  $("questionImage").src=""; $("revealImage").src="";
+  $("imageBox").classList.remove("show"); $("questionVideoBox").classList.remove("show"); $("revealImageBox").classList.remove("show"); $("videoBox").classList.remove("show");
+  render(); current=null; pendingAwards={};
 }
 
 function resolveImageUrl(raw){
@@ -540,7 +555,7 @@ function renderTeamInputs(){
   wrap.querySelectorAll("[data-remove]").forEach(b=>b.onclick=()=>{const i=Number(b.dataset.remove); if(state.teams.length<=2)return; syncTeamNames();state.teams.splice(i,1);renderTeamInputs()});
 }
 function syncTeamNames(){document.querySelectorAll("[data-teamname]").forEach(inp=>{const i=Number(inp.dataset.teamname);if(state.teams[i])state.teams[i].name=inp.value.trim()||`Tým ${i+1}`})}
-function makeBlankQuestion(value=100){return {value,question:"",answer:"",note:"",source:"",video:""}}
+function makeBlankQuestion(value=100){return {value,question:"",answer:"",note:"",image:"",questionVideo:"",revealImage:"",video:""}}
 function resizeBoard(cols,rows,rowPoints){
   while(QUIZ_DATA.categories.length<cols) QUIZ_DATA.categories.push({name:`Kategorie ${QUIZ_DATA.categories.length+1}`,questions:[]});
   QUIZ_DATA.categories=QUIZ_DATA.categories.slice(0,cols);
@@ -582,9 +597,10 @@ function renderEditor(){
         <div class="editor-field"><label>Otázka</label><textarea class="editor-textarea" data-q-field="question" data-ci="${ci}" data-qi="${qi}">${esc(q.question||"")}</textarea></div>
         <div class="editor-field"><label>Odpověď</label><textarea class="editor-textarea" data-q-field="answer" data-ci="${ci}" data-qi="${qi}">${esc(q.answer||"")}</textarea></div>
         <div class="editor-field"><label>Poznámka pro učitele</label><textarea class="editor-textarea" data-q-field="note" data-ci="${ci}" data-qi="${qi}">${esc(q.note||"")}</textarea></div>
-        <div class="editor-field"><label>Zdroj – odkaz</label><input class="editor-input" data-q-field="source" data-ci="${ci}" data-qi="${qi}" value="${esc(q.source||"")}" placeholder="https://…"></div>
-        <div class="editor-field"><label>Obrázek – odkaz (volitelné)</label><input class="editor-input" data-q-field="image" data-ci="${ci}" data-qi="${qi}" value="${esc(q.image||"")}" placeholder="Přímá URL obrázku / Google imgres odkaz"><div class="image-help">Nejspolehlivější je v Google Obrázcích zvolit „Kopírovat adresu obrázku“. Odkaz Google imgres s parametrem imgurl aplikace také umí převést.</div></div>
-        <div class="editor-field"><label>Video – odkaz (volitelné)</label><input class="editor-input" data-q-field="video" data-ci="${ci}" data-qi="${qi}" value="${esc(q.video||"")}" placeholder="YouTube / jiný odkaz"></div>`;
+        <div class="editor-field"><label>Obrázek u otázky – odkaz (volitelné)</label><input class="editor-input" data-q-field="image" data-ci="${ci}" data-qi="${qi}" value="${esc(q.image||"")}" placeholder="Přímá URL obrázku / Google imgres odkaz"><div class="image-help">Zobrazí se hned s otázkou. Google imgres s parametrem imgurl aplikace umí převést.</div></div>
+        <div class="editor-field"><label>Video u otázky – odkaz (volitelné)</label><input class="editor-input" data-q-field="questionVideo" data-ci="${ci}" data-qi="${qi}" value="${esc(q.questionVideo||"")}" placeholder="YouTube odkaz"><div class="image-help">Zobrazí se hned s otázkou – vhodné třeba pro hádání podle videa.</div></div>
+        <div class="editor-field"><label>Obrázek po odpovědi – odkaz (volitelné)</label><input class="editor-input" data-q-field="revealImage" data-ci="${ci}" data-qi="${qi}" value="${esc(q.revealImage||"")}" placeholder="Přímá URL obrázku / Google imgres odkaz"><div class="image-help">Tlačítko pro obrázek se objeví až po zobrazení správné odpovědi.</div></div>
+        <div class="editor-field"><label>Video po odpovědi – odkaz (volitelné)</label><input class="editor-input" data-q-field="video" data-ci="${ci}" data-qi="${qi}" value="${esc(q.video||"")}" placeholder="YouTube / jiný odkaz"><div class="image-help">Tlačítko pro video se objeví až po zobrazení správné odpovědi.</div></div>`;
       grid.appendChild(card);
     });
     sec.appendChild(grid);wrap.appendChild(sec);
@@ -597,7 +613,6 @@ function renderEditor(){
     <div class="editor-field"><label>Finální otázka</label><textarea class="editor-textarea" data-final-field="question">${esc(f.question||"")}</textarea></div>
     <div class="editor-field"><label>Odpověď</label><textarea class="editor-textarea" data-final-field="answer">${esc(f.answer||"")}</textarea></div>
     <div class="editor-field"><label>Poznámka pro učitele</label><textarea class="editor-textarea" data-final-field="note">${esc(f.note||"")}</textarea></div>
-    <div class="editor-field"><label>Zdroj – odkaz</label><input class="editor-input" data-final-field="source" value="${esc(f.source||"")}" placeholder="https://…"></div>
     <div class="editor-field"><label>Čas na finále (sekundy)</label><input class="editor-input" data-final-field="time" type="number" min="5" max="300" value="${Number(f.time)||45}"></div>`;
   wrap.appendChild(finalSec);
 }
@@ -620,7 +635,7 @@ function saveEditor(){
   render();toast("Otázky uloženy");
 }
 function resetEditor(){
-  if(!confirm("Vrátit celý obsah otázek, odpovědí, poznámek a zdrojů do původní verze?"))return;
+  if(!confirm("Vrátit celý obsah otázek, odpovědí, poznámek a médií do původní verze?"))return;
   editorDraft=normalizeQuizData(DEFAULT_QUIZ_DATA);renderEditor();toast("Načteny původní otázky – potvrď Uložit změny");
 }
 
@@ -663,7 +678,7 @@ function openFinal(){
 function showFinal(){
   finalWagers=[...document.querySelectorAll("[data-wager]")].map((inp,i)=>Math.max(0,Math.min(Number(inp.value)||0,Math.max(0,state.teams[i].score))));
   $("finalSetupStage").style.display="none";$("finalQuestionStage").style.display="block";
-  $("finalCategory").textContent=QUIZ_DATA.final.category;$("finalQuestion").textContent=QUIZ_DATA.final.question;$("finalAnswer").textContent=QUIZ_DATA.final.answer;$("finalNote").textContent=QUIZ_DATA.final.note||"";$("finalAnswerBox").classList.remove("show");$("finalSource").dataset.url=QUIZ_DATA.final.source||"";$("finalSource").style.display=QUIZ_DATA.final.source?"inline-flex":"none";
+  $("finalCategory").textContent=QUIZ_DATA.final.category;$("finalQuestion").textContent=QUIZ_DATA.final.question;$("finalAnswer").textContent=QUIZ_DATA.final.answer;$("finalNote").textContent=QUIZ_DATA.final.note||"";$("finalAnswerBox").classList.remove("show");
   finalRemaining=QUIZ_DATA.final.time||45;updateFinalTimer();renderFinalResults();
 }
 function renderFinalResults(){
@@ -680,10 +695,17 @@ function resetFinalTimer(){stopFinalTimer();finalRemaining=QUIZ_DATA.final.time|
 
 $("setupBtn").onclick=openSetup;$("editorBtn").onclick=openEditor;$("downloadHtmlTop").onclick=downloadPortableHtml;$("closeEditor").onclick=()=>$("editorOverlay").classList.remove("show");$("saveQuestions").onclick=saveEditor;$("resetQuestions").onclick=resetEditor;$("editorDownloadHtml").onclick=downloadPortableHtml;$("editorDownloadJson").onclick=()=>{syncEditorForExport();downloadJson()};$("closeSetup").onclick=()=>$("setupOverlay").classList.remove("show");$("saveSetup").onclick=saveSetup;$("downloadHtml").onclick=downloadPortableHtml;$("downloadJson").onclick=downloadJson;$("uploadJson").onclick=()=>$("jsonFile").click();$("jsonFile").onchange=e=>{const f=e.target.files?.[0];if(f)importJsonFile(f);e.target.value=""};$("rowCount").oninput=()=>{const n=Math.max(1,Math.min(10,Number($("rowCount").value)||1));const old=[...document.querySelectorAll("[data-row-point]")].map(x=>Number(x.value)||100);renderRowPointInputs(n,old)};
 $("addTeam").onclick=()=>{syncTeamNames();if(state.teams.length>=8){toast("Maximum je 8 týmů");return}state.teams.push({name:`Tým ${state.teams.length+1}`,score:0});renderTeamInputs()};
-$("closeQuestion").onclick=()=>closeQuestion(true);$("allCorrect").onclick=selectAllCorrect;$("applyAwards").onclick=applyAwardsAndClose;$("finishNoScore").onclick=()=>closeQuestion(true);$("reopenLater").onclick=()=>closeQuestion(false);
-$("showAnswer").onclick=()=>$("answerBox").classList.add("show");
+$("closeQuestion").onclick=()=>closeQuestion(true);$("applyAwards").onclick=applyAwardsAndClose;
+$("showAnswer").onclick=()=>{
+  $("answerBox").classList.add("show");
+  const hasImage=!!current?.q?.revealImage,hasVideo=!!current?.q?.video;
+  $("revealMediaActions").style.display=(hasImage||hasVideo)?"flex":"none";
+  $("revealImageBtn").style.display=hasImage?"inline-block":"none";
+  $("videoBtn").style.display=hasVideo?"inline-block":"none";
+};
 $("questionImage").onerror=()=>{if($("questionImage").src){$("imageBox").classList.remove("show");toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku")}};
-$("sourceBtn").onclick=()=>openContentView(current?.q?.source,"Zdroj k otázce");
+$("revealImage").onerror=()=>{if($("revealImage").src){$("revealImageBox").classList.remove("show");toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku")}};
+$("revealImageBtn").onclick=()=>{if(!current?.q?.revealImage)return;const box=$("revealImageBox");const show=!box.classList.contains("show");box.classList.toggle("show",show);$("revealImage").src=show?resolveImageUrl(current.q.revealImage):""};
 $("contentBack").onclick=closeContentView;
 $("contentExternal").onclick=()=>{if(!activeContentUrl)return;const w=window.open(activeContentUrl,"_blank","noopener,noreferrer");if(!w)toast("Prohlížeč zablokoval nový panel – povol vyskakovací okna")};
 $("videoBtn").onclick=()=>{if(!current?.q?.video)return;if(!isYoutubeUrl(current.q.video)){openContentView(current.q.video,"Video k otázce");return}const box=$("videoBox");const show=!box.classList.contains("show");box.classList.toggle("show",show);$("videoFrame").src=show?youtubeEmbed(current.q.video):""};
@@ -692,7 +714,7 @@ $("resetBtn").onclick=()=>{if(confirm("Opravdu začít novou hru? Vynulují se b
 $("fullscreenBtn").onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){toast("Celou obrazovku se nepodařilo zapnout")}};
 $("undoBtn").onclick=undoScore;
 $("closeManual").onclick=()=>$("manualOverlay").classList.remove("show");$("saveManual").onclick=saveManual;
-$("finalBtn").onclick=openFinal;$("closeFinal").onclick=()=>{stopFinalTimer();$("finalOverlay").classList.remove("show")};$("showFinalQuestion").onclick=showFinal;$("showFinalAnswer").onclick=()=>$("finalAnswerBox").classList.add("show");$("finalSource").onclick=()=>openContentView(QUIZ_DATA.final.source,"Zdroj finále");$("finalTimerStart").onclick=startFinalTimer;$("finalTimerPause").onclick=stopFinalTimer;$("finalTimerReset").onclick=resetFinalTimer;$("finishFinal").onclick=()=>{stopFinalTimer();state.finalPlayed=true;saveState();$("finalOverlay").classList.remove("show");render();toast("Finále dokončeno")};
+$("finalBtn").onclick=openFinal;$("closeFinal").onclick=()=>{stopFinalTimer();$("finalOverlay").classList.remove("show")};$("showFinalQuestion").onclick=showFinal;$("showFinalAnswer").onclick=()=>$("finalAnswerBox").classList.add("show");$("finalTimerStart").onclick=startFinalTimer;$("finalTimerPause").onclick=stopFinalTimer;$("finalTimerReset").onclick=resetFinalTimer;$("finishFinal").onclick=()=>{stopFinalTimer();state.finalPlayed=true;saveState();$("finalOverlay").classList.remove("show");render();toast("Finále dokončeno")};
 
 window.addEventListener("keydown",e=>{
   if(e.key==="Escape"){
