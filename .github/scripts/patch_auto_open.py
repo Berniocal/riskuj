@@ -15,35 +15,21 @@ old = '''function openContentView(raw,label="Obsah"){
 }
 '''
 
-new = '''function canEmbedContent(url){
-  try{
-    const host=new URL(url).hostname.toLowerCase().replace(/^www\\./,"");
-    return host==="wikipedia.org" || host.endsWith(".wikipedia.org") ||
-           host==="wikimedia.org" || host.endsWith(".wikimedia.org") ||
-           host==="youtube-nocookie.com" || host.endsWith(".youtube-nocookie.com");
-  }catch(e){return false}
-}
-function openExternalContent(url){
-  const w=window.open(url,"_blank","noopener,noreferrer");
-  if(!w) window.location.href=url;
-}
-function openContentView(raw,label="Obsah"){
+new = '''function openContentView(raw,label="Obsah"){
   const url=normalizeContentUrl(raw);
   if(!url){toast("Odkaz není platná webová adresa");return}
   stopTimer();
-  if(!canEmbedContent(url)){
-    openExternalContent(url);
-    return;
+  const w=window.open(url,"riskuj-content","width=1100,height=800");
+  if(w){
+    try{w.opener=null}catch(e){}
+    try{w.focus()}catch(e){}
+  }else{
+    window.location.href=url;
   }
-  activeContentUrl=url;
-  $("contentTitle").textContent=label;
-  $("contentUrl").textContent=url;
-  $("contentFrame").src=url;
-  $("contentOverlay").classList.add("show");
 }
 '''
 
-if "function canEmbedContent(url)" in s:
+if 'window.open(url,"riskuj-content","width=1100,height=800")' in s:
     raise SystemExit(0)
 if old not in s:
     raise SystemExit("Target openContentView block not found; refusing to patch")
