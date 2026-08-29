@@ -25,6 +25,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Prepare automatic source opening
+        run: |
+          python .github/scripts/patch_auto_open.py
+          grep -q 'function canEmbedContent' index.html
+          grep -q 'function openExternalContent' index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
