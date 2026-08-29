@@ -474,6 +474,45 @@ function isYoutubeUrl(raw){
   try{const u=new URL(raw);return u.hostname.includes("youtube.com")||u.hostname.includes("youtu.be")}catch(e){return false}
 }
 
+function clearImageElement(boxId,imgId){
+  const box=$(boxId),img=$(imgId);
+  box.classList.remove("show");
+  box.style.display="none";
+  img.dataset.expectedSrc="";
+  img.removeAttribute("src");
+}
+function showImageElement(boxId,imgId,raw){
+  const url=resolveImageUrl(raw);
+  if(!url){clearImageElement(boxId,imgId);return false}
+  const box=$(boxId),img=$(imgId);
+  img.dataset.expectedSrc=url;
+  img.src=url;
+  box.style.display="flex";
+  box.classList.add("show");
+  return true;
+}
+function clearVideoElement(boxId,frameId){
+  const box=$(boxId),frame=$(frameId);
+  box.classList.remove("show");
+  box.style.display="none";
+  frame.removeAttribute("src");
+}
+function showYoutubeElement(boxId,frameId,raw){
+  if(!raw || !isYoutubeUrl(raw)){clearVideoElement(boxId,frameId);return false}
+  const box=$(boxId),frame=$(frameId);
+  frame.src=youtubeEmbed(raw);
+  box.style.display="block";
+  box.classList.add("show");
+  return true;
+}
+function resetRevealMedia(){
+  $("revealMediaActions").style.display="none";
+  $("revealImageBtn").style.display="none";
+  $("videoBtn").style.display="none";
+  clearImageElement("revealImageBox","revealImage");
+  clearVideoElement("videoBox","videoFrame");
+}
+
 function openQuestion(ci,qi){
   stopTimer(); pendingAwards={}; current={ci,qi,q:QUIZ_DATA.categories[ci].questions[qi],key:`${ci}-${qi}`};
   $("qCategory").textContent=QUIZ_DATA.categories[ci].name;
@@ -482,17 +521,15 @@ function openQuestion(ci,qi){
   $("answerText").textContent=current.q.answer;
   $("answerNote").textContent=current.q.note||"";
   $("answerBox").classList.remove("show");
-  const imgUrl=resolveImageUrl(current.q.image);
-  $("imageBox").classList.toggle("show",!!imgUrl); $("questionImage").src=imgUrl||"";
-  const questionVideo=current.q.questionVideo||"";
-  const questionVideoIsYoutube=!!questionVideo&&isYoutubeUrl(questionVideo);
-  $("questionVideoBox").classList.toggle("show",questionVideoIsYoutube);
-  $("questionVideoFrame").src=questionVideoIsYoutube?youtubeEmbed(questionVideo):"";
-  $("revealMediaActions").style.display="none";
-  $("revealImageBtn").style.display="none";
-  $("videoBtn").style.display="none";
-  $("revealImageBox").classList.remove("show"); $("revealImage").src="";
-  $("videoBox").classList.remove("show"); $("videoFrame").src="";
+
+  clearImageElement("imageBox","questionImage");
+  if(String(current.q.image||"").trim()) showImageElement("imageBox","questionImage",current.q.image);
+
+  clearVideoElement("questionVideoBox","questionVideoFrame");
+  if(String(current.q.questionVideo||"").trim()) showYoutubeElement("questionVideoBox","questionVideoFrame",current.q.questionVideo);
+
+  resetRevealMedia();
+
   remaining=current.q.time||state.defaultTime; updateTimerDisplay(); renderAwards();
   $("questionOverlay").classList.add("show");
   if(state.autoTimer) startTimer();
@@ -501,9 +538,9 @@ function closeQuestion(markUsed=true){
   stopTimer();
   if(markUsed && current){state.used[current.key]=true;saveState();}
   $("questionOverlay").classList.remove("show");
-  $("videoFrame").src=""; $("questionVideoFrame").src="";
-  $("questionImage").src=""; $("revealImage").src="";
-  $("imageBox").classList.remove("show"); $("questionVideoBox").classList.remove("show"); $("revealImageBox").classList.remove("show"); $("videoBox").classList.remove("show");
+  clearImageElement("imageBox","questionImage");
+  clearVideoElement("questionVideoBox","questionVideoFrame");
+  resetRevealMedia();
   render(); current=null; pendingAwards={};
 }
 
@@ -698,17 +735,51 @@ $("addTeam").onclick=()=>{syncTeamNames();if(state.teams.length>=8){toast("Maxim
 $("closeQuestion").onclick=()=>closeQuestion(true);$("applyAwards").onclick=applyAwardsAndClose;
 $("showAnswer").onclick=()=>{
   $("answerBox").classList.add("show");
-  const hasImage=!!current?.q?.revealImage,hasVideo=!!current?.q?.video;
+  const hasImage=!!String(current?.q?.revealImage||"").trim();
+  const hasVideo=!!String(current?.q?.video||"").trim();
+
+  // Po odpovědi se zobrazí jen tlačítka. Samotné médium zůstává skryté.
+  clearImageElement("revealImageBox","revealImage");
+  clearVideoElement("videoBox","videoFrame");
   $("revealMediaActions").style.display=(hasImage||hasVideo)?"flex":"none";
   $("revealImageBtn").style.display=hasImage?"inline-block":"none";
   $("videoBtn").style.display=hasVideo?"inline-block":"none";
 };
-$("questionImage").onerror=()=>{if($("questionImage").src){$("imageBox").classList.remove("show");toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku")}};
-$("revealImage").onerror=()=>{if($("revealImage").src){$("revealImageBox").classList.remove("show");toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku")}};
-$("revealImageBtn").onclick=()=>{if(!current?.q?.revealImage)return;const box=$("revealImageBox");const show=!box.classList.contains("show");box.classList.toggle("show",show);$("revealImage").src=show?resolveImageUrl(current.q.revealImage):""};
+$("questionImage").onerror=()=>{
+  const img=$("questionImage");
+  if(!img.dataset.expectedSrc)return;
+  img.dataset.expectedSrc="";
+  $("imageBox").classList.remove("show");
+  $("imageBox").style.display="none";
+  img.removeAttribute("src");
+  toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku");
+};
+$("revealImage").onerror=()=>{
+  const img=$("revealImage");
+  if(!img.dataset.expectedSrc)return;
+  img.dataset.expectedSrc="";
+  $("revealImageBox").classList.remove("show");
+  $("revealImageBox").style.display="none";
+  img.removeAttribute("src");
+  toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku");
+};
+$("revealImageBtn").onclick=()=>{
+  if(!current?.q?.revealImage)return;
+  const box=$("revealImageBox");
+  const isOpen=box.style.display==="flex";
+  if(isOpen) clearImageElement("revealImageBox","revealImage");
+  else showImageElement("revealImageBox","revealImage",current.q.revealImage);
+};
 $("contentBack").onclick=closeContentView;
 $("contentExternal").onclick=()=>{if(!activeContentUrl)return;const w=window.open(activeContentUrl,"_blank","noopener,noreferrer");if(!w)toast("Prohlížeč zablokoval nový panel – povol vyskakovací okna")};
-$("videoBtn").onclick=()=>{if(!current?.q?.video)return;if(!isYoutubeUrl(current.q.video)){openContentView(current.q.video,"Video k otázce");return}const box=$("videoBox");const show=!box.classList.contains("show");box.classList.toggle("show",show);$("videoFrame").src=show?youtubeEmbed(current.q.video):""};
+$("videoBtn").onclick=()=>{
+  if(!current?.q?.video)return;
+  if(!isYoutubeUrl(current.q.video)){openContentView(current.q.video,"Video k otázce");return}
+  const box=$("videoBox");
+  const isOpen=box.style.display==="block";
+  if(isOpen) clearVideoElement("videoBox","videoFrame");
+  else showYoutubeElement("videoBox","videoFrame",current.q.video);
+};
 $("timerStart").onclick=startTimer;$("timerPause").onclick=stopTimer;$("timerReset").onclick=resetTimer;
 $("resetBtn").onclick=()=>{if(confirm("Opravdu začít novou hru? Vynulují se body i použité otázky.")){const keep={title:state.title,defaultTime:state.defaultTime,subtractWrong:state.subtractWrong,autoTimer:state.autoTimer,soundTimer:state.soundTimer,teams:state.teams.map(t=>({name:t.name,score:0}))};state={...clone(defaults),...keep};saveState();render();toast("Nová hra připravena")}};
 $("fullscreenBtn").onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){toast("Celou obrazovku se nepodařilo zapnout")}};
