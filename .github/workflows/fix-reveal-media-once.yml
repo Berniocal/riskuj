@@ -2,14 +2,14 @@ name: Fix reveal media once
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,156 +17,154 @@ jobs:
           fetch-depth: 0
 
       - name: Patch media behavior
-        shell: python
+        shell: bash
         run: |
+          python3 - <<'PY'
           from pathlib import Path
           import re
 
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
 
-          open_question = r'''function openQuestion\(ci,qi\)\{.*?\n\}\nfunction closeQuestion\(markUsed=true\)\{.*?\n\}\n\nfunction resolveImageUrl'''
-          replacement = r'''function clearImageElement(boxId,imgId){
-  const box=$(boxId),img=$(imgId);
-  box.classList.remove("show");
-  box.style.display="none";
-  img.dataset.expectedSrc="";
-  img.removeAttribute("src");
-}
-function showImageElement(boxId,imgId,raw){
-  const url=resolveImageUrl(raw);
-  if(!url){clearImageElement(boxId,imgId);return false}
-  const box=$(boxId),img=$(imgId);
-  img.dataset.expectedSrc=url;
-  img.src=url;
-  box.style.display="flex";
-  box.classList.add("show");
-  return true;
-}
-function clearVideoElement(boxId,frameId){
-  const box=$(boxId),frame=$(frameId);
-  box.classList.remove("show");
-  box.style.display="none";
-  frame.removeAttribute("src");
-}
-function showYoutubeElement(boxId,frameId,raw){
-  if(!raw || !isYoutubeUrl(raw)){clearVideoElement(boxId,frameId);return false}
-  const box=$(boxId),frame=$(frameId);
-  frame.src=youtubeEmbed(raw);
-  box.style.display="block";
-  box.classList.add("show");
-  return true;
-}
-function resetRevealMedia(){
-  $("revealMediaActions").style.display="none";
-  $("revealImageBtn").style.display="none";
-  $("videoBtn").style.display="none";
-  clearImageElement("revealImageBox","revealImage");
-  clearVideoElement("videoBox","videoFrame");
-}
+          if 'function resetRevealMedia()' not in s:
+              pattern = r'''function openQuestion\(ci,qi\)\{.*?\n\}\nfunction closeQuestion\(markUsed=true\)\{.*?\n\}\n\nfunction resolveImageUrl'''
+              replacement = r'''function clearImageElement(boxId,imgId){
+            const box=$(boxId),img=$(imgId);
+            box.classList.remove("show");
+            box.style.display="none";
+            img.dataset.expectedSrc="";
+            img.removeAttribute("src");
+          }
+          function showImageElement(boxId,imgId,raw){
+            const url=resolveImageUrl(raw);
+            if(!url){clearImageElement(boxId,imgId);return false}
+            const box=$(boxId),img=$(imgId);
+            img.dataset.expectedSrc=url;
+            img.src=url;
+            box.style.display="flex";
+            box.classList.add("show");
+            return true;
+          }
+          function clearVideoElement(boxId,frameId){
+            const box=$(boxId),frame=$(frameId);
+            box.classList.remove("show");
+            box.style.display="none";
+            frame.removeAttribute("src");
+          }
+          function showYoutubeElement(boxId,frameId,raw){
+            if(!raw || !isYoutubeUrl(raw)){clearVideoElement(boxId,frameId);return false}
+            const box=$(boxId),frame=$(frameId);
+            frame.src=youtubeEmbed(raw);
+            box.style.display="block";
+            box.classList.add("show");
+            return true;
+          }
+          function resetRevealMedia(){
+            $("revealMediaActions").style.display="none";
+            $("revealImageBtn").style.display="none";
+            $("videoBtn").style.display="none";
+            clearImageElement("revealImageBox","revealImage");
+            clearVideoElement("videoBox","videoFrame");
+          }
 
-function openQuestion(ci,qi){
-  stopTimer(); pendingAwards={}; current={ci,qi,q:QUIZ_DATA.categories[ci].questions[qi],key:`${ci}-${qi}`};
-  $("qCategory").textContent=QUIZ_DATA.categories[ci].name;
-  $("qValue").textContent=current.q.value+" bodů";
-  $("questionText").textContent=current.q.question;
-  $("answerText").textContent=current.q.answer;
-  $("answerNote").textContent=current.q.note||"";
-  $("answerBox").classList.remove("show");
+          function openQuestion(ci,qi){
+            stopTimer(); pendingAwards={}; current={ci,qi,q:QUIZ_DATA.categories[ci].questions[qi],key:`${ci}-${qi}`};
+            $("qCategory").textContent=QUIZ_DATA.categories[ci].name;
+            $("qValue").textContent=current.q.value+" bodů";
+            $("questionText").textContent=current.q.question;
+            $("answerText").textContent=current.q.answer;
+            $("answerNote").textContent=current.q.note||"";
+            $("answerBox").classList.remove("show");
 
-  clearImageElement("imageBox","questionImage");
-  if(current.q.image) showImageElement("imageBox","questionImage",current.q.image);
+            clearImageElement("imageBox","questionImage");
+            if(String(current.q.image||"").trim()) showImageElement("imageBox","questionImage",current.q.image);
 
-  clearVideoElement("questionVideoBox","questionVideoFrame");
-  if(current.q.questionVideo) showYoutubeElement("questionVideoBox","questionVideoFrame",current.q.questionVideo);
+            clearVideoElement("questionVideoBox","questionVideoFrame");
+            if(String(current.q.questionVideo||"").trim()) showYoutubeElement("questionVideoBox","questionVideoFrame",current.q.questionVideo);
 
-  // Média určená až po odpovědi se při otevření otázky vždy skryjí.
-  // Zobrazí se pouze jejich tlačítka po kliknutí na „Zobrazit odpověď“.
-  resetRevealMedia();
+            resetRevealMedia();
 
-  remaining=current.q.time||state.defaultTime; updateTimerDisplay(); renderAwards();
-  $("questionOverlay").classList.add("show");
-  if(state.autoTimer) startTimer();
-}
-function closeQuestion(markUsed=true){
-  stopTimer();
-  if(markUsed && current){state.used[current.key]=true;saveState();}
-  $("questionOverlay").classList.remove("show");
-  clearImageElement("imageBox","questionImage");
-  clearVideoElement("questionVideoBox","questionVideoFrame");
-  resetRevealMedia();
-  render(); current=null; pendingAwards={};
-}
+            remaining=current.q.time||state.defaultTime; updateTimerDisplay(); renderAwards();
+            $("questionOverlay").classList.add("show");
+            if(state.autoTimer) startTimer();
+          }
+          function closeQuestion(markUsed=true){
+            stopTimer();
+            if(markUsed && current){state.used[current.key]=true;saveState();}
+            $("questionOverlay").classList.remove("show");
+            clearImageElement("imageBox","questionImage");
+            clearVideoElement("questionVideoBox","questionVideoFrame");
+            resetRevealMedia();
+            render(); current=null; pendingAwards={};
+          }
 
-function resolveImageUrl'''
-          s2, n = re.subn(open_question, replacement, s, count=1, flags=re.S)
-          if n != 1:
-              raise SystemExit(f'openQuestion patch count={n}')
-          s = s2
+          function resolveImageUrl'''
+              s, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
+              if n != 1:
+                  raise SystemExit(f'openQuestion patch count={n}')
 
-          handlers = r'''\$\("showAnswer"\)\.onclick=\(\)=>\{.*?\n\$\("timerStart"\)\.onclick=startTimer;'''
+          handler_pattern = r'''\$\("showAnswer"\)\.onclick=\(\)=>\{.*?\n\$\("timerStart"\)\.onclick=startTimer;'''
           handler_replacement = r'''$("showAnswer").onclick=()=>{
-  $("answerBox").classList.add("show");
-  const hasImage=!!String(current?.q?.revealImage||"").trim();
-  const hasVideo=!!String(current?.q?.video||"").trim();
+            $("answerBox").classList.add("show");
+            const hasImage=!!String(current?.q?.revealImage||"").trim();
+            const hasVideo=!!String(current?.q?.video||"").trim();
 
-  // Ani po zobrazení odpovědi se médium samo neotevře.
-  // Jen se nabídne příslušné tlačítko.
-  clearImageElement("revealImageBox","revealImage");
-  clearVideoElement("videoBox","videoFrame");
-  $("revealMediaActions").style.display=(hasImage||hasVideo)?"flex":"none";
-  $("revealImageBtn").style.display=hasImage?"inline-block":"none";
-  $("videoBtn").style.display=hasVideo?"inline-block":"none";
-};
-$("questionImage").onerror=()=>{
-  const img=$("questionImage");
-  if(!img.dataset.expectedSrc)return;
-  img.dataset.expectedSrc="";
-  $("imageBox").classList.remove("show");
-  $("imageBox").style.display="none";
-  img.removeAttribute("src");
-  toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku");
-};
-$("revealImage").onerror=()=>{
-  const img=$("revealImage");
-  if(!img.dataset.expectedSrc)return;
-  img.dataset.expectedSrc="";
-  $("revealImageBox").classList.remove("show");
-  $("revealImageBox").style.display="none";
-  img.removeAttribute("src");
-  toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku");
-};
-$("revealImageBtn").onclick=()=>{
-  if(!current?.q?.revealImage)return;
-  const box=$("revealImageBox");
-  const isOpen=box.style.display==="flex";
-  if(isOpen) clearImageElement("revealImageBox","revealImage");
-  else showImageElement("revealImageBox","revealImage",current.q.revealImage);
-};
-$("contentBack").onclick=closeContentView;
-$("contentExternal").onclick=()=>{if(!activeContentUrl)return;const w=window.open(activeContentUrl,"_blank","noopener,noreferrer");if(!w)toast("Prohlížeč zablokoval nový panel – povol vyskakovací okna")};
-$("videoBtn").onclick=()=>{
-  if(!current?.q?.video)return;
-  if(!isYoutubeUrl(current.q.video)){openContentView(current.q.video,"Video k otázce");return}
-  const box=$("videoBox");
-  const isOpen=box.style.display==="block";
-  if(isOpen) clearVideoElement("videoBox","videoFrame");
-  else showYoutubeElement("videoBox","videoFrame",current.q.video);
-};
-$("timerStart").onclick=startTimer;'''
-          s2, n = re.subn(handlers, handler_replacement, s, count=1, flags=re.S)
+            // Po odpovědi se zobrazí jen tlačítka. Samotné médium zůstává skryté.
+            clearImageElement("revealImageBox","revealImage");
+            clearVideoElement("videoBox","videoFrame");
+            $("revealMediaActions").style.display=(hasImage||hasVideo)?"flex":"none";
+            $("revealImageBtn").style.display=hasImage?"inline-block":"none";
+            $("videoBtn").style.display=hasVideo?"inline-block":"none";
+          };
+          $("questionImage").onerror=()=>{
+            const img=$("questionImage");
+            if(!img.dataset.expectedSrc)return;
+            img.dataset.expectedSrc="";
+            $("imageBox").classList.remove("show");
+            $("imageBox").style.display="none";
+            img.removeAttribute("src");
+            toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku");
+          };
+          $("revealImage").onerror=()=>{
+            const img=$("revealImage");
+            if(!img.dataset.expectedSrc)return;
+            img.dataset.expectedSrc="";
+            $("revealImageBox").classList.remove("show");
+            $("revealImageBox").style.display="none";
+            img.removeAttribute("src");
+            toast("Obrázek se nepodařilo načíst – zkus přímou adresu obrázku");
+          };
+          $("revealImageBtn").onclick=()=>{
+            if(!current?.q?.revealImage)return;
+            const box=$("revealImageBox");
+            const isOpen=box.style.display==="flex";
+            if(isOpen) clearImageElement("revealImageBox","revealImage");
+            else showImageElement("revealImageBox","revealImage",current.q.revealImage);
+          };
+          $("contentBack").onclick=closeContentView;
+          $("contentExternal").onclick=()=>{if(!activeContentUrl)return;const w=window.open(activeContentUrl,"_blank","noopener,noreferrer");if(!w)toast("Prohlížeč zablokoval nový panel – povol vyskakovací okna")};
+          $("videoBtn").onclick=()=>{
+            if(!current?.q?.video)return;
+            if(!isYoutubeUrl(current.q.video)){openContentView(current.q.video,"Video k otázce");return}
+            const box=$("videoBox");
+            const isOpen=box.style.display==="block";
+            if(isOpen) clearVideoElement("videoBox","videoFrame");
+            else showYoutubeElement("videoBox","videoFrame",current.q.video);
+          };
+          $("timerStart").onclick=startTimer;'''
+          s, n = re.subn(handler_pattern, handler_replacement, s, count=1, flags=re.S)
           if n != 1:
               raise SystemExit(f'handler patch count={n}')
-          s = s2
 
           p.write_text(s, encoding='utf-8')
+          PY
 
       - name: Verify
         shell: bash
         run: |
           grep -q 'function resetRevealMedia' index.html
           grep -q 'if(!img.dataset.expectedSrc)return' index.html
-          grep -q 'Ani po zobrazení odpovědi se médium samo neotevře' index.html
+          grep -q 'Po odpovědi se zobrazí jen tlačítka' index.html
           grep -q 'Uložit body → zpět na tabuli' index.html
           grep -q 'Poznámka pro učitele' index.html
 
@@ -180,5 +178,5 @@ $("timerStart").onclick=startTimer;'''
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Fix hidden reveal media and empty image errors"
+          git commit -m "Fix reveal media visibility and empty image errors"
           git push
