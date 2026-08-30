@@ -2,14 +2,15 @@ name: Finalize answer media once
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.actor != 'github-actions[bot]'
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,70 +26,71 @@ jobs:
           git reset --hard origin/main
 
       - name: Patch answer media behavior
-        shell: python
         run: |
+          python3 <<'PY'
           from pathlib import Path
 
           p = Path('index.html')
           s = p.read_text(encoding='utf-8')
 
           old = '''function showYoutubeElement(boxId,frameId,raw){
-  if(!raw || !isYoutubeUrl(raw)){clearVideoElement(boxId,frameId);return false}
-  const box=$(boxId),frame=$(frameId);
-  frame.src=youtubeEmbed(raw);
-  box.style.display="block";
-  box.classList.add("show");
-  return true;
-}'''
+            if(!raw || !isYoutubeUrl(raw)){clearVideoElement(boxId,frameId);return false}
+            const box=$(boxId),frame=$(frameId);
+            frame.src=youtubeEmbed(raw);
+            box.style.display="block";
+            box.classList.add("show");
+            return true;
+          }'''
+          old = old.replace('          ', '')
           new = '''function showYoutubeElement(boxId,frameId,raw){
-  const value=String(raw||"").trim();
-  if(!value){clearVideoElement(boxId,frameId);return false}
-  const src=isYoutubeUrl(value)?youtubeEmbed(value):normalizeContentUrl(value);
-  if(!src){clearVideoElement(boxId,frameId);return false}
-  const box=$(boxId),frame=$(frameId);
-  frame.src=src;
-  box.style.display="block";
-  box.classList.add("show");
-  return true;
-}'''
+            const value=String(raw||"").trim();
+            if(!value){clearVideoElement(boxId,frameId);return false}
+            const src=isYoutubeUrl(value)?youtubeEmbed(value):normalizeContentUrl(value);
+            if(!src){clearVideoElement(boxId,frameId);return false}
+            const box=$(boxId),frame=$(frameId);
+            frame.src=src;
+            box.style.display="block";
+            box.classList.add("show");
+            return true;
+          }'''.replace('          ', '')
           if old not in s:
               raise SystemExit('showYoutubeElement snippet not found')
           s = s.replace(old, new, 1)
 
           old = '''$("showAnswer").onclick=()=>{
-  $("answerBox").classList.add("show");
-  const hasImage=!!String(current?.q?.revealImage||"").trim();
-  const hasVideo=!!String(current?.q?.video||"").trim();
+            $("answerBox").classList.add("show");
+            const hasImage=!!String(current?.q?.revealImage||"").trim();
+            const hasVideo=!!String(current?.q?.video||"").trim();
 
-  // Po odpovědi se zobrazí jen tlačítka. Samotné médium zůstává skryté.
-  clearImageElement("revealImageBox","revealImage");
-  clearVideoElement("videoBox","videoFrame");
-  $("revealMediaActions").style.display=(hasImage||hasVideo)?"flex":"none";
-  $("revealImageBtn").style.display=hasImage?"inline-block":"none";
-  $("videoBtn").style.display=hasVideo?"inline-block":"none";
-};'''
+            // Po odpovědi se zobrazí jen tlačítka. Samotné médium zůstává skryté.
+            clearImageElement("revealImageBox","revealImage");
+            clearVideoElement("videoBox","videoFrame");
+            $("revealMediaActions").style.display=(hasImage||hasVideo)?"flex":"none";
+            $("revealImageBtn").style.display=hasImage?"inline-block":"none";
+            $("videoBtn").style.display=hasVideo?"inline-block":"none";
+          };'''.replace('          ', '')
           new = '''$("showAnswer").onclick=()=>{
-  $("answerBox").classList.add("show");
-  const revealImage=String(current?.q?.revealImage||"").trim();
-  const revealVideo=String(current?.q?.video||"").trim();
-  const hasReplacement=!!(revealImage||revealVideo);
+            $("answerBox").classList.add("show");
+            const revealImage=String(current?.q?.revealImage||"").trim();
+            const revealVideo=String(current?.q?.video||"").trim();
+            const hasReplacement=!!(revealImage||revealVideo);
 
-  // Pokud je k odpovědi nové médium, nahradí média zobrazená u otázky.
-  // Pokud k odpovědi žádné médium není, původní obrázek/video zůstane.
-  if(hasReplacement){
-    clearImageElement("imageBox","questionImage");
-    clearVideoElement("questionVideoBox","questionVideoFrame");
-    clearImageElement("revealImageBox","revealImage");
-    clearVideoElement("videoBox","videoFrame");
-    if(revealImage) showImageElement("revealImageBox","revealImage",revealImage);
-    if(revealVideo) showYoutubeElement("videoBox","videoFrame",revealVideo);
-  }
+            // Pokud je k odpovědi nové médium, nahradí média zobrazená u otázky.
+            // Pokud k odpovědi žádné médium není, původní obrázek/video zůstane.
+            if(hasReplacement){
+              clearImageElement("imageBox","questionImage");
+              clearVideoElement("questionVideoBox","questionVideoFrame");
+              clearImageElement("revealImageBox","revealImage");
+              clearVideoElement("videoBox","videoFrame");
+              if(revealImage) showImageElement("revealImageBox","revealImage",revealImage);
+              if(revealVideo) showYoutubeElement("videoBox","videoFrame",revealVideo);
+            }
 
-  // Žádné mezitlačítko: média k odpovědi se zobrazí rovnou s odpovědí.
-  $("revealMediaActions").style.display="none";
-  $("revealImageBtn").style.display="none";
-  $("videoBtn").style.display="none";
-};'''
+            // Žádné mezitlačítko: média k odpovědi se zobrazí rovnou s odpovědí.
+            $("revealMediaActions").style.display="none";
+            $("revealImageBtn").style.display="none";
+            $("videoBtn").style.display="none";
+          };'''.replace('          ', '')
           if old not in s:
               raise SystemExit('showAnswer snippet not found')
           s = s.replace(old, new, 1)
@@ -97,14 +99,15 @@ jobs:
           s = s.replace('Tlačítko pro video se objeví až po zobrazení správné odpovědi.', 'Zobrazí se automaticky se správnou odpovědí. Pokud je vyplněno, nahradí média zobrazená u otázky.', 1)
 
           p.write_text(s, encoding='utf-8')
+          PY
 
       - name: Verify behavior
         run: |
-          grep -q 'const hasReplacement=!!(revealImage||revealVideo)' index.html
-          grep -q 'if(revealImage) showImageElement' index.html
-          grep -q 'if(revealVideo) showYoutubeElement' index.html
-          grep -q 'Poznámka pro učitele' index.html
-          grep -q 'Uložit body → zpět na tabuli' index.html
+          grep -Fq 'const hasReplacement=!!(revealImage||revealVideo)' index.html
+          grep -Fq 'if(revealImage) showImageElement' index.html
+          grep -Fq 'if(revealVideo) showYoutubeElement' index.html
+          grep -Fq 'Poznámka pro učitele' index.html
+          grep -Fq 'Uložit body → zpět na tabuli' index.html
 
       - name: Remove obsolete one-time workflows
         run: |
