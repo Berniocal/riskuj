@@ -498,9 +498,12 @@ function clearVideoElement(boxId,frameId){
   frame.removeAttribute("src");
 }
 function showYoutubeElement(boxId,frameId,raw){
-  if(!raw || !isYoutubeUrl(raw)){clearVideoElement(boxId,frameId);return false}
+  const value=String(raw||"").trim();
+  if(!value){clearVideoElement(boxId,frameId);return false}
+  const src=isYoutubeUrl(value)?youtubeEmbed(value):normalizeContentUrl(value);
+  if(!src){clearVideoElement(boxId,frameId);return false}
   const box=$(boxId),frame=$(frameId);
-  frame.src=youtubeEmbed(raw);
+  frame.src=src;
   box.style.display="block";
   box.classList.add("show");
   return true;
@@ -636,8 +639,8 @@ function renderEditor(){
         <div class="editor-field"><label>Poznámka pro učitele</label><textarea class="editor-textarea" data-q-field="note" data-ci="${ci}" data-qi="${qi}">${esc(q.note||"")}</textarea></div>
         <div class="editor-field"><label>Obrázek u otázky – odkaz (volitelné)</label><input class="editor-input" data-q-field="image" data-ci="${ci}" data-qi="${qi}" value="${esc(q.image||"")}" placeholder="Přímá URL obrázku / Google imgres odkaz"><div class="image-help">Zobrazí se hned s otázkou. Google imgres s parametrem imgurl aplikace umí převést.</div></div>
         <div class="editor-field"><label>Video u otázky – odkaz (volitelné)</label><input class="editor-input" data-q-field="questionVideo" data-ci="${ci}" data-qi="${qi}" value="${esc(q.questionVideo||"")}" placeholder="YouTube odkaz"><div class="image-help">Zobrazí se hned s otázkou – vhodné třeba pro hádání podle videa.</div></div>
-        <div class="editor-field"><label>Obrázek po odpovědi – odkaz (volitelné)</label><input class="editor-input" data-q-field="revealImage" data-ci="${ci}" data-qi="${qi}" value="${esc(q.revealImage||"")}" placeholder="Přímá URL obrázku / Google imgres odkaz"><div class="image-help">Tlačítko pro obrázek se objeví až po zobrazení správné odpovědi.</div></div>
-        <div class="editor-field"><label>Video po odpovědi – odkaz (volitelné)</label><input class="editor-input" data-q-field="video" data-ci="${ci}" data-qi="${qi}" value="${esc(q.video||"")}" placeholder="YouTube / jiný odkaz"><div class="image-help">Tlačítko pro video se objeví až po zobrazení správné odpovědi.</div></div>`;
+        <div class="editor-field"><label>Obrázek po odpovědi – odkaz (volitelné)</label><input class="editor-input" data-q-field="revealImage" data-ci="${ci}" data-qi="${qi}" value="${esc(q.revealImage||"")}" placeholder="Přímá URL obrázku / Google imgres odkaz"><div class="image-help">Zobrazí se automaticky se správnou odpovědí. Pokud je vyplněno, nahradí média zobrazená u otázky.</div></div>
+        <div class="editor-field"><label>Video po odpovědi – odkaz (volitelné)</label><input class="editor-input" data-q-field="video" data-ci="${ci}" data-qi="${qi}" value="${esc(q.video||"")}" placeholder="YouTube / jiný odkaz"><div class="image-help">Zobrazí se automaticky se správnou odpovědí. Pokud je vyplněno, nahradí média zobrazená u otázky.</div></div>`;
       grid.appendChild(card);
     });
     sec.appendChild(grid);wrap.appendChild(sec);
@@ -735,15 +738,25 @@ $("addTeam").onclick=()=>{syncTeamNames();if(state.teams.length>=8){toast("Maxim
 $("closeQuestion").onclick=()=>closeQuestion(true);$("applyAwards").onclick=applyAwardsAndClose;
 $("showAnswer").onclick=()=>{
   $("answerBox").classList.add("show");
-  const hasImage=!!String(current?.q?.revealImage||"").trim();
-  const hasVideo=!!String(current?.q?.video||"").trim();
+  const revealImage=String(current?.q?.revealImage||"").trim();
+  const revealVideo=String(current?.q?.video||"").trim();
+  const hasReplacement=!!(revealImage||revealVideo);
 
-  // Po odpovědi se zobrazí jen tlačítka. Samotné médium zůstává skryté.
-  clearImageElement("revealImageBox","revealImage");
-  clearVideoElement("videoBox","videoFrame");
-  $("revealMediaActions").style.display=(hasImage||hasVideo)?"flex":"none";
-  $("revealImageBtn").style.display=hasImage?"inline-block":"none";
-  $("videoBtn").style.display=hasVideo?"inline-block":"none";
+  // Pokud je k odpovědi nové médium, nahradí média zobrazená u otázky.
+  // Pokud k odpovědi žádné médium není, původní obrázek/video zůstane.
+  if(hasReplacement){
+    clearImageElement("imageBox","questionImage");
+    clearVideoElement("questionVideoBox","questionVideoFrame");
+    clearImageElement("revealImageBox","revealImage");
+    clearVideoElement("videoBox","videoFrame");
+    if(revealImage) showImageElement("revealImageBox","revealImage",revealImage);
+    if(revealVideo) showYoutubeElement("videoBox","videoFrame",revealVideo);
+  }
+
+  // Žádné mezitlačítko: média k odpovědi se zobrazí rovnou s odpovědí.
+  $("revealMediaActions").style.display="none";
+  $("revealImageBtn").style.display="none";
+  $("videoBtn").style.display="none";
 };
 $("questionImage").onerror=()=>{
   const img=$("questionImage");
